@@ -1,0 +1,89 @@
+/* General Styling */
+body {
+  font-family: Arial, sans-serif;
+  background: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  width: 350px;
+  text-align: center;
+}
+
+h1 {
+  margin-bottom: 5px;
+  color: #1e3a8a;
+}
+
+.subtitle {
+  margin-bottom: 20px;
+  color: #555;
+  font-size: 14px;
+}
+
+.form-box {
+  text-align: left;
+}
+
+.form-box h2 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #1e3a8a;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.btn {
+  width: 100%;
+  background: #1e3a8a;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #3b82f6;
+}
+
+.switch {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.switch a {
+  color: #1e3a8a;
+  text-decoration: none;
+}
+
+.switch a:hover {
+  text-decoration: underline;
+}

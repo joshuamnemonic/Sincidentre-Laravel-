@@ -1,0 +1,999 @@
+/* ============================================
+   SINCIDENTRE ADMIN DASHBOARD CSS
+   Styling for all admin pages:
+   - Overview (Admin Dashboard)
+   - Review Queue (Reports)
+   - User Management (Users)
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary-color: #2563eb;
+  --secondary-color: #1e40af;
+  --accent-color: #f59e0b;
+  --danger-color: #dc2626;
+  --success-color: #10b981;
+  --warning-color: #f97316;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+  gap: 0;
+}
+
+/* ============================================
+   SIDEBAR - All Pages
+   ============================================ */
+.sidebar {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+  padding: 2rem 1.5rem;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sidebar nav {
+  flex: 1;
+}
+
+.sidebar ul {
+  list-style: none;
+}
+
+.sidebar li {
+  margin-bottom: 0.75rem;
+}
+
+.sidebar a {
+  display: block;
+  padding: 0.875rem 1.25rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+}
+
+.sidebar a:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary-color);
+  border-left-color: var(--primary-color);
+  padding-left: 1.5rem;
+}
+
+.sidebar form {
+  margin-top: auto;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.sidebar button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
+}
+
+/* ============================================
+   MAIN CONTENT AREA - All Pages
+   ============================================ */
+.main {
+  background: var(--bg-primary);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+header input[type="search"],
+header input[type="text"] {
+  padding: 0.875rem 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  width: 250px;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+}
+
+header input[type="search"]:focus,
+header input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+header input[type="search"]::placeholder,
+header input[type="text"]::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   PAGE 1: OVERVIEW (Admin Dashboard)
+   Stats Cards & Recent Reports
+   ============================================ */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
+  padding: 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow);
+  border-color: var(--primary-color);
+}
+
+.card h3 {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.card p {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#reports {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+#reports h2 {
+  padding: 1.75rem 2rem;
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.05));
+}
+
+/* ============================================
+   PAGE 2 & 3: TABLES
+   (Review Queue & User Management)
+   ============================================ */
+
+section {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+section h2 {
+  padding: 1.75rem 2rem;
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.05));
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-secondary);
+}
+
+thead {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(30, 64, 175, 0.1));
+  border-bottom: 2px solid var(--border-color);
+}
+
+th {
+  padding: 1.25rem 2rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+tbody tr {
+  transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-left: 3px solid var(--primary-color);
+  padding-left: 0;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================
+   PAGE 2 & 3: ACTION LINKS & BUTTONS
+   (View, Approve, Reject, Suspend, Delete)
+   ============================================ */
+
+td a {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+  white-space: nowrap;
+}
+
+td a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+/* ============================================
+   PAGE 2: REVIEW QUEUE
+   Search Form & Action Buttons
+   ============================================ */
+
+header form {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 400px;
+}
+
+header form input[type="text"] {
+  flex: 1;
+}
+
+header form button,
+td button {
+  padding: 0.4rem 0.75rem;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+header form button {
+  padding: 0.875rem 1.75rem;
+  font-size: 0.95rem;
+}
+
+header form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+}
+
+td button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* Color-coded action buttons for PAGE 2 (Review Queue) */
+/* Approve button - Green */
+td form:nth-of-type(1) button {
+  background: linear-gradient(135deg, var(--success-color), #059669);
+}
+
+td form:nth-of-type(1) button:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Reject/Delete button - Red */
+td form:nth-of-type(2) button,
+td form:nth-of-type(3) button {
+  background: linear-gradient(135deg, var(--danger-color), #991b1b);
+}
+
+td form:nth-of-type(2) button:hover,
+td form:nth-of-type(3) button:hover {
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* ============================================
+   PAGE 3: USER MANAGEMENT
+   Suspend & Delete Buttons
+   ============================================ */
+
+/* ============================================
+   PAGE 4: HANDLE REPORTS
+   Approved Reports & Handle Actions
+   ============================================ */
+
+/* ============================================
+   PAGE 5: HANDLE REPORT DETAILS
+   Individual Report Management & Update Form
+   ============================================ */
+
+#handle-reports {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  padding: 0;
+}
+
+#handle-reports h2 {
+  padding: 1.75rem 2rem;
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.05));
+  margin: 0;
+}
+
+#handle-reports p {
+  padding: 1rem 2rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#handle-reports table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#handle-reports table tbody tr {
+  transition: all 0.2s ease;
+}
+
+#handle-reports table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-left: 3px solid var(--primary-color);
+}
+
+/* Handle button styling for PAGE 4 */
+#handle-reports td a {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, var(--accent-color), #d97706);
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+#handle-reports td a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
+/* ============================================
+   PAGE 5 STYLES: Report Details & Form
+   ============================================ */
+
+#report-details {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 2rem;
+}
+
+#report-details h2 {
+  padding: 1.75rem 2rem;
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.05));
+  margin: 0;
+}
+
+#report-details table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#report-details table th {
+  padding: 1rem 2rem;
+  text-align: left;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.08);
+  border-right: 1px solid var(--border-color);
+  color: var(--primary-color);
+  width: 20%;
+}
+
+#report-details table td {
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+#report-details table tr:last-child td {
+  border-bottom: none;
+}
+
+#report-details table tr:hover {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+/* ============================================
+   PAGE 5: HANDLE FORM SECTION
+   ============================================ */
+
+#handle-form {
+  background: var(--bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  padding: 2rem;
+}
+
+#handle-form h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(245, 158, 11, 0.05));
+  margin-left: -2rem;
+  margin-right: -2rem;
+  margin-top: -2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-top: 1.75rem;
+}
+
+#handle-form form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+#handle-form div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+#handle-form label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+#handle-form input[type="text"],
+#handle-form input[type="date"],
+#handle-form textarea,
+#handle-form select {
+  padding: 0.875rem 1.25rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+#handle-form input[type="text"]:focus,
+#handle-form input[type="date"]:focus,
+#handle-form textarea:focus,
+#handle-form select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+#handle-form textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#handle-form select {
+  cursor: pointer;
+}
+
+#handle-form button[type="submit"] {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--success-color), #059669);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#handle-form button[type="submit"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+}
+
+#handle-form button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+/* Suspend button - Warning/Orange */
+td form[action*="suspend"] button {
+  background: linear-gradient(135deg, var(--warning-color), #d97706);
+}
+
+td form[action*="suspend"] button:hover {
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+/* Delete button - Red */
+td form[action*="destroy"] button,
+td form[method="POST"] button[onclick*="delete"] {
+  background: linear-gradient(135deg, var(--danger-color), #991b1b);
+}
+
+td form[action*="destroy"] button:hover,
+td form[method="POST"] button[onclick*="delete"]:hover {
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* ============================================
+   MOBILE MENU & OVERLAY
+   All Pages
+   ============================================ */
+
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 1000;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-menu-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Tablets
+   ============================================ */
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    height: auto;
+    position: relative;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  header form {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  header form input[type="text"] {
+    width: 100%;
+  }
+
+  header input[type="search"],
+  header input[type="text"] {
+    width: 100%;
+  }
+
+  .stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Mobile (Tablets)
+   ============================================ */
+@media (max-width: 768px) {
+  .sidebar h2 {
+    font-size: 1.25rem;
+  }
+
+  header h1 {
+    font-size: 1.75rem;
+  }
+
+  section h2,
+  #reports h2 {
+    font-size: 1.25rem;
+  }
+
+  th, td {
+    padding: 0.875rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  table {
+    font-size: 0.9rem;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  td a {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Mobile (Small Phones)
+   ============================================ */
+@media (max-width: 480px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding: 1.5rem 1rem;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  header p {
+    font-size: 0.9rem;
+  }
+
+  header form {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  header form input[type="text"],
+  header form button {
+    width: 100%;
+  }
+
+  header input[type="search"],
+  header input[type="text"] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  header form button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .card h3 {
+    font-size: 0.85rem;
+  }
+
+  .card p {
+    font-size: 2rem;
+  }
+
+  section {
+    border-radius: 0.5rem;
+  }
+
+  section h2 {
+    padding: 1.25rem 1rem;
+    font-size: 1.25rem;
+  }
+
+  #reports h2 {
+    padding: 1.25rem 1rem;
+    font-size: 1.25rem;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    font-size: 0.8rem;
+    min-width: 100%;
+  }
+
+  thead {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(30, 64, 175, 0.1));
+  }
+
+  th {
+    padding: 0.875rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  td {
+    padding: 0.875rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  tbody tr:hover {
+    background: rgba(37, 99, 235, 0.08);
+    border-left: 3px solid var(--primary-color);
+  }
+
+  td a {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+    margin: 0.15rem 0.25rem 0.15rem 0;
+  }
+
+  td button {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+    margin: 0.15rem 0.25rem 0.15rem 0;
+  }
+
+  .mobile-menu-toggle {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    padding: 1.5rem;
+    border-right: 1px solid var(--border-color);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  .sidebar h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sidebar a {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  .sidebar button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  #report-details {
+    margin-bottom: 1.5rem;
+  }
+
+  #report-details h2 {
+    padding: 1.25rem 1rem;
+    font-size: 1.25rem;
+  }
+
+  #report-details table th {
+    width: 30%;
+    padding: 0.75rem 1rem;
+  }
+
+  #report-details table td {
+    padding: 0.75rem 1rem;
+  }
+
+  #handle-reports h2 {
+    padding: 1.25rem 1rem;
+  }
+
+  #handle-reports p {
+    padding: 0.875rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  #handle-form {
+    padding: 1.5rem 1rem;
+  }
+
+  #handle-form h2 {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    margin-top: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-size: 1.25rem;
+  }
+
+  #handle-form div {
+    gap: 0.4rem;
+  }
+
+  #handle-form label {
+    font-size: 0.9rem;
+  }
+
+  #handle-form input[type="text"],
+  #handle-form input[type="date"],
+  #handle-form textarea,
+  #handle-form select {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  #handle-form button[type="submit"] {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+    width: 100%;
+    align-self: center;
+  }
+}

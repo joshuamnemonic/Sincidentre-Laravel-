@@ -1,0 +1,355 @@
+/* ============================================
+   SINCIDENTRE LOGIN & REGISTER CSS
+   Separate from Admin and User Dashboard CSS
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary-color: #2563eb;
+  --secondary-color: #1e40af;
+  --accent-color: #f59e0b;
+  --success-color: #10b981;
+  --danger-color: #dc2626;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-gradient-light: #e0e7ff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  color: var(--text-primary);
+}
+
+/* ============================================
+   CONTAINER & HEADER
+   ============================================ */
+
+.container {
+  background: var(--bg-secondary);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  padding: 3rem 2.5rem;
+  max-width: 420px;
+  width: 100%;
+  animation: slideUp 0.6s ease-out;
+}
+
+.container h1 {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 2.5rem;
+  font-weight: 500;
+}
+
+/* ============================================
+   FORM BOX (Login & Register)
+   ============================================ */
+
+.form-box {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.form-box h2 {
+  font-size: 1.75rem;
+  color: var(--text-primary);
+  margin-bottom: 1.75rem;
+  text-align: center;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.form-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ============================================
+   INPUT GROUPS
+   ============================================ */
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  display: block;
+}
+
+.input-group input {
+  padding: 0.875rem 1.25rem;
+  background: var(--bg-gradient-light);
+  border: 2px solid var(--border-color);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input-group input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   SUBMIT BUTTON
+   ============================================ */
+
+.btn {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 0.75rem;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   FORM SWITCH (Login/Register Toggle)
+   ============================================ */
+
+.switch {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.switch a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.switch a:hover {
+  border-bottom-color: var(--primary-color);
+  color: var(--secondary-color);
+}
+
+/* ============================================
+   ERROR MESSAGES
+   ============================================ */
+
+.error-box {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid var(--danger-color);
+  border-left: 4px solid var(--danger-color);
+  color: var(--danger-color);
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  margin-top: 1.5rem;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.error-box p {
+  margin: 0.5rem 0;
+}
+
+.error-box p:first-child {
+  margin-top: 0;
+}
+
+/* ============================================
+   SUCCESS MESSAGE
+   ============================================ */
+
+.success-box {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--success-color);
+  border-left: 4px solid var(--success-color);
+  color: var(--success-color);
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  margin-top: 1.5rem;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Tablets
+   ============================================ */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 2.5rem 2rem;
+  }
+
+  .container h1 {
+    font-size: 2rem;
+  }
+
+  .form-box h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .input-group input {
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: 0.9rem 1.75rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Mobile
+   ============================================ */
+
+@media (max-width: 480px) {
+  body {
+    padding: 1rem;
+  }
+
+  .container {
+    padding: 2rem 1.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .container h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .form-box h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .input-group {
+    gap: 0.4rem;
+  }
+
+  .input-group label {
+    font-size: 0.9rem;
+  }
+
+  .input-group input {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: 0.85rem 1.5rem;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+
+  .switch {
+    margin-top: 1.25rem;
+    font-size: 0.85rem;
+  }
+
+  .error-box,
+  .success-box {
+    padding: 0.875rem 1.25rem;
+    margin-top: 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .error-box p,
+  .success-box p {
+    margin: 0.35rem 0;
+  }
+}
