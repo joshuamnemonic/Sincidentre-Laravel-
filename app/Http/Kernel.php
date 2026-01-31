@@ -61,5 +61,9 @@ class Kernel extends HttpKernel
         // 👇 Custom admin middleware
         'is_admin' => \App\Http\Middleware\IsAdmin::class,
     ];
+    protected $middlewareAliases = [
+    // ... existing middleware
+    'check.user.status' => \App\Http\Middleware\CheckUserStatus::class,
+];
 }
 

@@ -9,23 +9,19 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up()
+    public function up()
 {
-    Schema::table('users', function (Blueprint $table) {
-    if (!Schema::hasColumn('users', 'is_admin')) {
-        $table->boolean('is_admin')->default(0)->after('password');
-    }
-});
-
+    Schema::table('reports', function (Blueprint $table) {
+        $table->text('rejection_reason')->nullable()->after('status');
+    });
 }
-
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('reports', function (Blueprint $table) {
             //
         });
     }

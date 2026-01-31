@@ -9,15 +9,16 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up()
+    public function up(): void
 {
-    Schema::table('users', function (Blueprint $table) {
-    if (!Schema::hasColumn('users', 'is_admin')) {
-        $table->boolean('is_admin')->default(0)->after('password');
-    }
-});
-
+    Schema::create('departments', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->timestamps();
+    });
 }
+
+
 
 
     /**
@@ -25,8 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('departments');
     }
 };

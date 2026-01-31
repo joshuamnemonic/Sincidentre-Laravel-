@@ -1,6 +1,7 @@
 /* ============================================
-   SINCIDENTRE LOGIN & REGISTER CSS
-   Separate from Admin and User Dashboard CSS
+   SINCIDENTRE LOGIN/REGISTER PAGE
+   Glassmorphism Design with Animated Background
+   Modern, Professional, Fully Responsive
    ============================================ */
 
 * {
@@ -9,225 +10,126 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 :root {
+  /* Colors */
   --primary-color: #2563eb;
-  --secondary-color: #1e40af;
-  --accent-color: #f59e0b;
+  --primary-dark: #1e40af;
+  --accent-color: #8b5cf6;
   --success-color: #10b981;
-  --danger-color: #dc2626;
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-gradient-light: #e0e7ff;
+  --error-color: #ef4444;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
-  --border-color: #e2e8f0;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  
+  /* Transitions */
+  --transition: 0.3s ease;
 }
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
   min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 2rem;
-  color: var(--text-primary);
+  justify-content: center;
+  padding: 2rem 2rem 3rem;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ============================================
-   CONTAINER & HEADER
+   ANIMATED BACKGROUND
    ============================================ */
 
-.container {
-  background: var(--bg-secondary);
-  border-radius: 1rem;
-  box-shadow: var(--shadow);
-  padding: 3rem 2.5rem;
-  max-width: 420px;
+.background-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  animation: slideUp 0.6s ease-out;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.container h1 {
-  font-size: 2.5rem;
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 70%);
+  animation: float 20s infinite ease-in-out;
 }
 
-.subtitle {
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  margin-bottom: 2.5rem;
-  font-weight: 500;
+.circle-1 {
+  width: 300px;
+  height: 300px;
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
 }
 
-/* ============================================
-   FORM BOX (Login & Register)
-   ============================================ */
-
-.form-box {
-  animation: fadeIn 0.3s ease-out;
+.circle-2 {
+  width: 200px;
+  height: 200px;
+  top: 60%;
+  right: 15%;
+  animation-delay: 5s;
 }
 
-.form-box h2 {
-  font-size: 1.75rem;
-  color: var(--text-primary);
-  margin-bottom: 1.75rem;
-  text-align: center;
-  font-weight: 700;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 1rem;
+.circle-3 {
+  width: 250px;
+  height: 250px;
+  bottom: 10%;
+  left: 50%;
+  animation-delay: 10s;
 }
 
-.form-box form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-/* ============================================
-   INPUT GROUPS
-   ============================================ */
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.input-group label {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  display: block;
-}
-
-.input-group input {
-  padding: 0.875rem 1.25rem;
-  background: var(--bg-gradient-light);
-  border: 2px solid var(--border-color);
-  border-radius: 0.5rem;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
-}
-
-.input-group input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  background: var(--bg-secondary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.input-group input::placeholder {
-  color: var(--text-secondary);
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-30px) translateX(20px) scale(1.1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-60px) translateX(-20px) scale(1);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translateY(-30px) translateX(-40px) scale(0.9);
+    opacity: 0.4;
+  }
 }
 
 /* ============================================
-   SUBMIT BUTTON
+   MAIN CONTAINER
    ============================================ */
 
-.btn {
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 700;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 0.75rem;
+.login-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  animation: fadeInUp 0.8s ease-out;
+  margin: auto;
 }
 
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-/* ============================================
-   FORM SWITCH (Login/Register Toggle)
-   ============================================ */
-
-.switch {
-  text-align: center;
-  margin-top: 1.5rem;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.switch a {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-bottom: 2px solid transparent;
-}
-
-.switch a:hover {
-  border-bottom-color: var(--primary-color);
-  color: var(--secondary-color);
-}
-
-/* ============================================
-   ERROR MESSAGES
-   ============================================ */
-
-.error-box {
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid var(--danger-color);
-  border-left: 4px solid var(--danger-color);
-  color: var(--danger-color);
-  padding: 1rem 1.5rem;
-  border-radius: 0.5rem;
-  margin-top: 1.5rem;
-  font-weight: 500;
-  animation: slideDown 0.3s ease-out;
-}
-
-.error-box p {
-  margin: 0.5rem 0;
-}
-
-.error-box p:first-child {
-  margin-top: 0;
-}
-
-/* ============================================
-   SUCCESS MESSAGE
-   ============================================ */
-
-.success-box {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid var(--success-color);
-  border-left: 4px solid var(--success-color);
-  color: var(--success-color);
-  padding: 1rem 1.5rem;
-  border-radius: 0.5rem;
-  margin-top: 1.5rem;
-  font-weight: 500;
-  animation: slideDown 0.3s ease-out;
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-@keyframes slideUp {
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(30px);
@@ -236,6 +138,132 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ============================================
+   BRAND SECTION
+   ============================================ */
+
+.brand-section {
+  text-align: center;
+  margin-bottom: 2rem;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.logo-wrapper {
+  margin-bottom: 1.5rem;
+  animation: float 6s infinite ease-in-out;
+}
+
+.logo-image {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+  transition: transform var(--transition);
+}
+
+.logo-image:hover {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.brand-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.brand-subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1rem;
+}
+
+.brand-tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.brand-tagline .icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   GLASSMORPHISM FORM BOX
+   ============================================ */
+
+.form-box {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.form-box:first-of-type {
+  display: block;
+}
+
+/* ============================================
+   FORM HEADER
+   ============================================ */
+
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.form-header p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.95rem;
+}
+
+/* ============================================
+   ALERTS
+   ============================================ */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  animation: slideDown 0.3s ease-out;
+  backdrop-filter: blur(10px);
 }
 
 @keyframes slideDown {
@@ -249,107 +277,440 @@ body {
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.alert-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-content p {
+  margin: 0.25rem 0;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: white;
+}
+
+.alert-error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: white;
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - Tablets
+   INPUT GROUPS
+   ============================================ */
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.label-icon {
+  font-size: 1.1rem;
+}
+
+.input-group input,
+.input-group select {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all var(--transition);
+  backdrop-filter: blur(10px);
+}
+
+.input-group input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.input-group input:focus,
+.input-group select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.input-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M1 4l5 4 5-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.25rem center;
+  padding-right: 3rem;
+}
+
+.input-group select option {
+  background: #2563eb;
+  color: white;
+  padding: 0.5rem;
+}
+
+.input-hint {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+  width: 100%;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+  color: #1e40af;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+  transition: transform var(--transition);
+}
+
+.btn:hover .btn-icon {
+  transform: translateX(5px);
+}
+
+/* ============================================
+   FORM FOOTER
+   ============================================ */
+
+.form-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.form-footer p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.link-primary {
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition);
+  position: relative;
+  padding-bottom: 2px;
+}
+
+.link-primary::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: width var(--transition);
+}
+
+.link-primary:hover::after {
+  width: 100%;
+}
+
+.link-primary:hover {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   PAGE FOOTER
+   ============================================ */
+
+.page-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.page-footer p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.footer-links {
+  margin-top: 0.5rem;
+}
+
+.footer-links a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  transition: color var(--transition);
+  margin: 0 0.25rem;
+}
+
+.footer-links a:hover {
+  color: white;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   RESPONSIVE - TABLETS
    ============================================ */
 
 @media (max-width: 768px) {
-  .container {
-    padding: 2.5rem 2rem;
+  body {
+    padding: 1.5rem 1.5rem 2.5rem;
+    align-items: flex-start;
+    padding-top: 2rem;
   }
 
-  .container h1 {
-    font-size: 2rem;
+  .brand-title {
+    font-size: 2.5rem;
   }
 
-  .form-box h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
+  .brand-subtitle {
+    font-size: 1rem;
   }
 
-  .input-group input {
-    padding: 0.8rem 1rem;
-    font-size: 0.9rem;
+  .form-box {
+    padding: 2rem 1.5rem;
   }
 
-  .btn {
-    padding: 0.9rem 1.75rem;
-    font-size: 0.95rem;
+  .form-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .input-row {
+    grid-template-columns: 1fr;
   }
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - Mobile
+   RESPONSIVE - MOBILE
    ============================================ */
 
 @media (max-width: 480px) {
   body {
-    padding: 1rem;
+    padding: 1rem 1rem 2rem;
+    align-items: flex-start;
+    padding-top: 2rem;
   }
 
-  .container {
-    padding: 2rem 1.5rem;
-    border-radius: 0.75rem;
+  .logo-image {
+    width: 80px;
+    height: 80px;
   }
 
-  .container h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
+  .brand-title {
+    font-size: 2rem;
+    letter-spacing: 1px;
   }
 
-  .subtitle {
+  .brand-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .brand-tagline {
+    font-size: 0.8rem;
+    padding: 0.625rem 1.25rem;
+  }
+
+  .form-box {
+    padding: 1.5rem 1rem;
+    border-radius: 1rem;
+  }
+
+  .form-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .form-header p {
     font-size: 0.85rem;
-    margin-bottom: 1.75rem;
   }
 
-  .form-box h2 {
-    font-size: 1.25rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.75rem;
-  }
-
-  .input-group {
-    gap: 0.4rem;
-  }
-
-  .input-group label {
-    font-size: 0.9rem;
-  }
-
-  .input-group input {
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
+  .input-group input,
+  .input-group select {
+    padding: 0.875rem 1rem;
+    font-size: 16px; /* Prevents iOS zoom */
   }
 
   .btn {
-    padding: 0.85rem 1.5rem;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
   }
 
-  .switch {
-    margin-top: 1.25rem;
-    font-size: 0.85rem;
+  .circle {
+    opacity: 0.5;
   }
 
-  .error-box,
-  .success-box {
-    padding: 0.875rem 1.25rem;
-    margin-top: 1.25rem;
-    font-size: 0.9rem;
+  .circle-1 {
+    width: 200px;
+    height: 200px;
   }
 
-  .error-box p,
-  .success-box p {
-    margin: 0.35rem 0;
+  .circle-2 {
+    width: 150px;
+    height: 150px;
+  }
+
+  .circle-3 {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+/* ============================================
+   iOS SAFE AREAS
+   ============================================ */
+
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: max(2rem, env(safe-area-inset-top));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+*:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  .background-animation,
+  .page-footer {
+    display: none;
+  }
+
+  body {
+    background: white;
+  }
+
+  .form-box {
+    background: white;
+    border: 1px solid #ccc;
+  }
+}
+
+/* ============================================
+   LOADING STATE (Optional)
+   ============================================ */
+
+.btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

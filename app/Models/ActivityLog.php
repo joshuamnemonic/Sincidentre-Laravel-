@@ -1,22 +1,20 @@
 <?php
 
 namespace App\Models;
-use App\Models\User;
-use App\Models\Report;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Activity extends Model
+class ActivityLog extends Model
 {
     protected $fillable = [
-    'report_id',
-    'user_id',
-    'action',
-    'performed_by',
-    'old_status',
-    'new_status',
-    'remarks',
-];
+        'report_id',
+        'user_id',
+        'action',
+        'performed_by',
+        'old_status',
+        'new_status',
+        'remarks',
+    ];
 
     // Admin who performed the action
     public function admin()

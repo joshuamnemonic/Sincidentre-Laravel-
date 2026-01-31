@@ -1,137 +1,143 @@
-<!DOCTYPE html>
+@extends('layouts.app')
 
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Report - Sincidentre</title>
-    <link rel="stylesheet" href="{{ asset('css/usernewcss.css') }}">
-</head>
-<body>
+@section('title', 'New Report - Sincidentre')
 
-  <!-- Sidebar -->
+@section('content')
 
-  <div class="sidebar">
-    <h2>Sincidentre</h2>
-    <a href="{{ route('dashboard') }}">Home</a>
-    <a href="{{ route('newreport') }}" class="active">New Report</a>
-    <a href="{{ route('myreports') }}">My Reports</a>
-    <a href="{{ route('profile') }}">Profile</a>
+<div class="page-container">
 
+    <!-- Page Header -->
+    <header class="page-header">
+        <h1>New Incident Report</h1>
+        <p>Please fill out the form below to submit an incident.</p>
+    </header>
 
-<!-- Hidden Logout Form -->
-<form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-    @csrf
-</form>
-<a href="#" id="logout-btn">Logout</a>
+    <!-- Success Message -->
+    @if(session('success'))
+        <div class="alert alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
 
+    <!-- Validation Errors -->
+    @if($errors->any())
+        <div class="alert alert-error">
+            <ul>
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-  </div>
+    <!-- Report Form -->
+    <section class="form-wrapper animate">
+        <form id="reportForm"
+              action="{{ route('reports.store') }}"
+              method="POST"
+              enctype="multipart/form-data">
 
-  <script>
-  document.getElementById('logout-btn').addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('logout-form').submit();
-  });
-  </script>
+            @csrf
 
-  <!-- Main Content -->
+            <!-- Report Title -->
+            <div class="form-group">
+                <label for="title">Report Title / Subject <span>*</span></label>
+                <input type="text"
+                       id="title"
+                       name="title"
+                       value="{{ old('title') }}"
+                       placeholder="Short summary of the incident"
+                       required>
+            </div>
 
-  <div class="dashboard">
-    <div class="welcome">
-        <h1>📝 New Report</h1>
-        <p>Submit a new incident report below.</p>
-    </div>
+            <!-- Category -->
+            <div class="form-group">
+                <label for="category_id">Category / Type of Incident <span>*</span></label>
+                <select id="category_id" name="category_id" required>
+    <option value="">-- Select Category --</option>
 
+    @foreach($categories as $category)
+    <option value="{{ $category->id }}"
+        {{ old('category_id') == $category->id ? 'selected' : '' }}>
+        {{ $category->name }}
+    </option>
+@endforeach
 
-<!-- ✅ Success Message -->
-@if(session('success'))
-  <div class="alert-success">
-    {{ session('success') }}
-  </div>
-@endif
+</select>
 
-<!-- ❌ Error Message -->
-@if($errors->any())
-  <div class="alert-error">
-      <ul>
-          @foreach($errors->all() as $error)
-              <li>{{ $error }}</li>
-          @endforeach
-      </ul>
-  </div>
-@endif
+            </div>
 
-<!-- ✅ Fixed Form -->
-<div class="form-container animate">
-  <form id="reportForm" action="{{ route('reports.store') }}" method="POST" enctype="multipart/form-data">
-      @csrf
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">Incident Description <span>*</span></label>
+                <textarea id="description"
+                          name="description"
+                          rows="5"
+                          placeholder="Provide detailed information about the incident"
+                          required>{{ old('description') }}</textarea>
+            </div>
 
-      <!-- Report Title -->
-      <div class="form-group">
-          <label for="title">Report Title / Subject *</label>
-          <input type="text" id="title" name="title" value="{{ old('title') }}" required>
-      </div>
+            <!-- Date & Time -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="incident_date">Date of Incident <span>*</span></label>
+                    <input type="date"
+                           id="incident_date"
+                           name="incident_date"
+                           value="{{ old('incident_date') }}"
+                           required>
+                </div>
 
-      <!-- Category -->
-      <div class="form-group">
-          <label for="category">Category / Type of Incident *</label>
-          <select id="category" name="category" required>
-              <option value="">-- Select Category --</option>
-              <option value="Bullying" {{ old('category') == 'Bullying' ? 'selected' : '' }}>Bullying</option>
-              <option value="Lost Item" {{ old('category') == 'Lost Item' ? 'selected' : '' }}>Lost Item</option>
-              <option value="Facility Issue" {{ old('category') == 'Facility Issue' ? 'selected' : '' }}>Facility Issue</option>
-              <option value="Accident" {{ old('category') == 'Accident' ? 'selected' : '' }}>Accident</option>
-              <option value="Harassment" {{ old('category') == 'Harassment' ? 'selected' : '' }}>Harassment</option>
-              <option value="Theft" {{ old('category') == 'Theft' ? 'selected' : '' }}>Theft</option>
-              <option value="Other" {{ old('category') == 'Other' ? 'selected' : '' }}>Other</option>
-          </select>
-      </div>
+                <div class="form-group">
+                    <label for="incident_time">Time of Incident <span>*</span></label>
+                    <input type="time"
+                           id="incident_time"
+                           name="incident_time"
+                           value="{{ old('incident_time') }}"
+                           required>
+                </div>
+            </div>
 
-      <!-- Description -->
-      <div class="form-group">
-          <label for="description">Description *</label>
-          <textarea id="description" name="description" rows="5" required>{{ old('description') }}</textarea>
-      </div>
+            <!-- Location -->
+            <div class="form-group">
+                <label for="location">Location <span>*</span></label>
+                <input type="text"
+                       id="location"
+                       name="location"
+                       value="{{ old('location') }}"
+                       placeholder="Where did the incident occur?"
+                       required>
+            </div>
 
-      <!-- Date & Time -->
-      <div class="form-row">
-          <div class="form-group half">
-              <label for="incident_date">Date of Incident *</label>
-              <input type="date" id="incident_date" name="incident_date" value="{{ old('incident_date') }}" required>
-          </div>
+            <!-- Evidence Upload -->
+            <div class="form-group">
+                <label for="evidence">Upload Evidence <span>*</span></label>
+                <input type="file"
+                       id="evidence"
+                       name="evidence[]"
+                       accept="image/*,video/*,.pdf"
+                       multiple
+                       required>
 
-          <div class="form-group half">
-              <label for="incident_time">Time of Incident *</label>
-              <input type="time" id="incident_time" name="incident_time" value="{{ old('incident_time') }}" required>
-          </div>
-      </div>
+                <small class="form-hint">
+                    Max 50MB total • JPG, PNG, PDF, MP4, AVI, MOV
+                </small>
+            </div>
 
-      <!-- Location -->
-      <div class="form-group">
-          <label for="location">Location *</label>
-          <input type="text" id="location" name="location" value="{{ old('location') }}" required>
-      </div>
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    Submit Report
+                </button>
 
-      <!-- Evidence -->
-      <div class="form-group">
-          <label for="evidence">Upload Evidence (required)</label>
-          <input type="file" id="evidence" name="evidence[]" accept="image/*,video/*,.pdf" multiple required> 
-          <p class="hint">Max 50MB | Formats: JPG, PNG, PDF, MP4, AVI, MOV</p>
-      </div>
+                <a href="{{ route('dashboard') }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
 
-      <!-- Buttons -->
-      <div class="form-actions">
-          <button type="submit" class="btn-submit">Submit Report</button>
-          <a href="{{ route('dashboard') }}" class="btn-cancel">Cancel</a>
-      </div>
-  </form>
+        </form>
+    </section>
+
 </div>
 
-
-  </div>
-
-  <script src="{{ asset('js/sincidentre.js') }}"></script>
-
-</body>
-</html>
+@endsection

@@ -13,21 +13,23 @@ class Report extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-    'user_id',
-    'title',
-    'description',
-    'incident_date',
-    'incident_time',
-    'location',
-    'category',
-    'status',
-    'assigned_to',
-    'department',
-    'target_date',
-    'remarks',
-    'evidence',
-    'submitted_at',
-];
+        'user_id',
+        'title',
+        'description',
+        'incident_date',
+        'incident_time',
+        'location',
+        'category_id', // Add this if you have category_id column
+        'status',
+        'assigned_to',
+        'department',
+        'target_date',
+        'remarks',
+        'evidence',
+        'submitted_at',
+        'rejection_reason',
+        'handled_by',
+    ];
 
     /**
      * The attributes that should be cast.
@@ -49,13 +51,21 @@ class Report extends Model
     /**
      * Relationship: Each report belongs to one category.
      */
+    public function category()
+{
+    return $this->belongsTo(Category::class);
+}
+
+    /**
+     * Alias for category relationship (keep for backward compatibility).
+     */
     public function categoryRelation()
     {
         return $this->belongsTo(Category::class, 'category_id');
     }
-    public function activities()
-{
-    return $this->hasMany(Activity::class);
-}
 
+    public function activities()
+    {
+        return $this->hasMany(Activity::class);
+    }
 }

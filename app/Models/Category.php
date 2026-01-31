@@ -18,6 +18,11 @@ public function index()
     $categories = Category::all();
     return view('user.dashboard', compact('categories'));
 }
+
+public function reports()
+{
+    return $this->hasMany(Report::class);
+}
 }
 
 
