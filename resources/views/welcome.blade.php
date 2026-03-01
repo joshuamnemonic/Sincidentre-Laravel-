@@ -21,7 +21,7 @@
   <div class="brand-section">
     <div class="logo-wrapper">
       <!-- Replace 'logo.png' with your actual logo path -->
-      <img src="{{ asset('images/logo.png') }}" alt="Sincidentre Logo" class="logo-image">
+      <img src="{{ asset('resources/images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="logo-image">
     </div>
     <h1 class="brand-title">SINCIDENTRE</h1>
     <p class="brand-subtitle">School Incident Reporting System</p>

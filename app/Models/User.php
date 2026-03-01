@@ -60,25 +60,25 @@ class User extends Authenticatable implements MustVerifyEmail
         return trim("{$this->first_name} {$this->last_name}");
     }
 
-    // ✅ NEW: Relationship to admin who suspended this user
+    // NEW: Relationship to admin who suspended this user
     public function suspendedBy()
     {
         return $this->belongsTo(User::class, 'suspended_by');
     }
 
-    // ✅ NEW: Check if user is active
+    // NEW: Check if user is active
     public function isActive()
     {
         return $this->status === 'active';
     }
 
-    // ✅ NEW: Check if user is suspended
+    // NEW: Check if user is suspended
     public function isSuspended()
     {
         return $this->status === 'suspended';
     }
 
-    // ✅ NEW: Check if user is deactivated
+    // NEW: Check if user is deactivated
     public function isDeactivated()
     {
         return $this->status === 'deactivated';

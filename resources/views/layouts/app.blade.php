@@ -28,7 +28,7 @@
         <div class="sidebar-header">
             <div class="logo-container">
                 <!-- Replace 'logo.png' with your actual logo path -->
-                <img src="{{ asset('images/logo.png') }}" alt="Sincidentre Logo" class="sidebar-logo">
+                <img src="{{ asset('images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="sidebar-logo">
                 <div class="logo-text">
                     <h2>SINCIDENTRE</h2>
                     <span class="logo-tagline">Incident Reporting</span>

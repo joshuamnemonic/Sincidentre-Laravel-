@@ -32,7 +32,6 @@
                         <th>ID</th>
                         <th>Category Name</th>
                         <th>Date Created</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,17 +40,10 @@
                             <td>{{ $category->id }}</td>
                             <td>{{ $category->name }}</td>
                             <td>{{ $category->created_at ? $category->created_at->format('Y-m-d') : 'N/A' }}</td>
-                            <td>
-                                <form action="{{ route('admin.categories.destroy', $category->id) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" onclick="return confirm('Delete this category?')">🗑️ Delete</button>
-                                </form>
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4">No categories found.</td>
+                            <td colspan="3">No categories found.</td>
                         </tr>
                     @endforelse
                 </tbody>

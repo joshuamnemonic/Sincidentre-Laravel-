@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AnalyticsController;
 
 
 Route::get('/', function () {
@@ -68,19 +69,28 @@ Route::middleware(['auth', 'is_admin'])->group(function () {
         ->name('admin.users.destroy');
 
     // Admin Handle Reports
-    Route::prefix('admin')->group(function () {
-        Route::get('/handle-reports', 
-            [HandleReportsController::class, 'index']
-        )->name('admin.handlereports');
+Route::prefix('admin')->group(function () {
+    Route::get('/handle-reports', 
+        [HandleReportsController::class, 'index']
+    )->name('admin.handlereports');
 
-        Route::get('/handle-reports/{id}', 
-            [HandleReportsController::class, 'show']
-        )->name('admin.handlereports.show');
+    Route::get('/handle-reports/{id}', 
+        [HandleReportsController::class, 'show']
+    )->name('admin.handlereports.show');
 
-        Route::put('/handle-reports/{id}/update', 
-            [HandleReportsController::class, 'update']
-        )->name('admin.handlereports.update');
-    });
+    Route::put('/handle-reports/{id}/update', 
+        [HandleReportsController::class, 'update']
+    )->name('admin.handlereports.update');
+    
+    // Optional: Additional routes
+    Route::post('/handle-reports/bulk-update', 
+        [HandleReportsController::class, 'bulkUpdate']
+    )->name('admin.handlereports.bulk-update');
+    
+    Route::get('/handle-reports/export', 
+        [HandleReportsController::class, 'export']
+    )->name('admin.handlereports.export');
+});
 });
 
 // CATEGORY MANAGEMENT
@@ -175,3 +185,14 @@ Route::prefix('admin')->middleware(['auth', 'is_admin'])->name('admin.')->group(
 Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])
     ->middleware(['auth', 'is_admin'])
     ->name('admin.activitylogs');
+
+// Analytics Routes
+Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+    
+    // Analytics Dashboard
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    
+    // Export Analytics
+    Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
+    
+});

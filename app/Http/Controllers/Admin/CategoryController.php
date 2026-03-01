@@ -49,25 +49,6 @@ ActivityLogger::log(
         ->with('success', 'Category added successfully!');
 }
 
-    // Delete category
-    public function destroy($id)
-{
-    $category = Category::findOrFail($id);
-    $categoryName = $category->name;
-
-    $category->delete();
-
-    ActivityLogger::log(
-        'Deleted Category',
-        null,
-        null,
-        null,
-        'Category name: ' . $categoryName
-    );
-
-    return redirect()
-        ->route('admin.categories.index')
-        ->with('success', 'Category deleted successfully!');
-}
+    
 
 }

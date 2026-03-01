@@ -25,6 +25,91 @@
         </div>
     @endif
 
+    <!-- Filter Section -->
+    <section id="filter-section" style="margin-bottom: 20px;">
+       <div class="filter-container">
+            <form method="GET" action="{{ route('admin.reports') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                
+                <!-- Category Filter -->
+                <div class="form-group">
+                    <label for="category_filter">Category:</label>
+                    <select name="category" id="category_filter" style="width: 100%; padding: 8px;">
+                        <option value="">All Categories</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="form-group">
+                    <label for="status_filter">Status:</label>
+                    <select name="status" id="status_filter" style="width: 100%; padding: 8px;">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                        <option value="under review" {{ request('status') == 'under review' ? 'selected' : '' }}>Under Review</option>
+                    </select>
+                </div>
+
+                <!-- Date From -->
+                <div class="form-group">
+                    <label for="from_date">Date From:</label>
+                    <input type="date" name="from" id="from_date" value="{{ request('from') }}" style="width: 100%; padding: 8px;">
+                </div>
+
+                <!-- Date To -->
+                <div class="form-group">
+                    <label for="to_date">Date To:</label>
+                    <input type="date" name="to" id="to_date" value="{{ request('to') }}" style="width: 100%; padding: 8px;">
+                </div>
+
+                <!-- Reporter Name -->
+                <div class="form-group">
+                    <label for="reporter_filter">Reporter Name:</label>
+                    <input type="text" name="reporter" id="reporter_filter" placeholder="Search by name..." value="{{ request('reporter') }}" style="width: 100%; padding: 8px;">
+                </div>
+
+                <!-- Filter Buttons -->
+                <div class="form-group" style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-filter" style="padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+                        Apply Filters
+                    </button>
+                    @if(request()->hasAny(['category', 'status', 'from', 'to', 'reporter']))
+                        <a href="{{ route('admin.reports') }}" class="btn-clear" style="padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-block;">
+                            Clear Filters
+                        </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        <!-- Quick Stats -->
+        @if(isset($statusCounts))
+        <div class="stats-container" style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+            <div class="stat-card" style="padding: 15px; border-radius: 5px; flex: 1; min-width: 150px;">
+                <h4 style="margin: 0; font-size: 14px;">Pending</h4>
+                <p style="margin: 5px 0 0; font-size: 24px; font-weight: bold;">{{ $statusCounts['pending'] ?? 0 }}</p>
+            </div>
+            <div class="stat-card" style="padding: 15px; border-radius: 5px; flex: 1; min-width: 150px;">
+                <h4 style="margin: 0; font-size: 14px;">Approved</h4>
+                <p style="margin: 5px 0 0; font-size: 24px; font-weight: bold;">{{ $statusCounts['approved'] ?? 0 }}</p>
+            </div>
+            <div class="stat-card" style="padding: 15px; border-radius: 5px; flex: 1; min-width: 150px;">
+                <h4 style="margin: 0; font-size: 14px;">Rejected</h4>
+                <p style="margin: 5px 0 0; font-size: 24px; font-weight: bold;">{{ $statusCounts['rejected'] ?? 0 }}</p>
+            </div>
+            <div class="stat-card" style="padding: 15px; border-radius: 5px; flex: 1; min-width: 150px;">
+                <h4 style="margin: 0; font-size: 14px;">Under Review</h4>
+                <p style="margin: 5px 0 0; font-size: 24px; font-weight: bold;">{{ $statusCounts['under_review'] ?? 0 }}</p>
+            </div>
+        </div>
+        @endif
+    </section>
+
     <!-- Reports Table -->
     <section id="reports">
         <div class="table-wrapper">
@@ -90,7 +175,7 @@
                                             required></textarea>
                                     </div>
                                     <button type="button" onclick="closeRejectModal({{ $report->id }})">Cancel</button>
-                                    <button type="submit" style="background-color: #dc3545; color: white;">Reject Report</button>
+                                    <button type="submit">Reject Report</button>
                                 </form>
                             </div>
                         </div>
