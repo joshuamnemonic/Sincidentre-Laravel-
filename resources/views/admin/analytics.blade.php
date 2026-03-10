@@ -66,32 +66,6 @@
                 <p>{{ $totalReports }}</p>
                 <small>All time in your department</small>
             </div>
-
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <h4>This Period</h4>
-                <p>{{ $periodReports }}</p>
-                <small>
-                    @if($percentageChange > 0)
-                        ↑ {{ number_format($percentageChange, 1) }}% from previous period
-                    @elseif($percentageChange < 0)
-                        ↓ {{ number_format(abs($percentageChange), 1) }}% from previous period
-                    @else
-                        No change from previous period
-                    @endif
-                </small>
-            </div>
-
-            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h4>Avg Response Time</h4>
-                <p>{{ $avgResponseTime }}</p>
-                <small>Hours to first action</small>
-            </div>
-
-            <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                <h4>Resolution Rate</h4>
-                <p>{{ $resolutionRate }}%</p>
-                <small>Reports marked as resolved</small>
-            </div>
         </div>
     </section>
 
@@ -229,18 +203,6 @@
     <section style="margin-bottom: 30px;">
         <h2>⚡ Performance Metrics</h2>
         <div class="performance-grid">
-            <div class="metric-card">
-                <h4>Average Time to Approve</h4>
-                <p style="color: #28a745;">{{ $avgTimeToApprove }}</p>
-                <small>Hours</small>
-            </div>
-
-            <div class="metric-card">
-                <h4>Average Time to Resolve</h4>
-                <p style="color: #007bff;">{{ $avgTimeToResolve }}</p>
-                <small>Days</small>
-            </div>
-
             <div class="metric-card">
                 <h4>Reports Pending > 3 Days</h4>
                 <p style="color: #dc3545;">{{ $overdueReports }}</p>

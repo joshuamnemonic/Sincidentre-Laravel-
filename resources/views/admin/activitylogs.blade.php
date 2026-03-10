@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Activity Logs - Sincidentre Admin')
+@section('title', 'Audit Trail - Sincidentre Admin')
 
-@section('page-title', 'Activity Logs / Audit Trail')
+@section('page-title', 'Audit Trail')
 
 @section('header-search')
   <div style="display: flex; align-items: center; gap: 10px;">
@@ -87,7 +87,7 @@
             <th>Action</th>
             <th>Report ID</th>
             <th>Status Change</th>
-            <th>Actions</th>
+            <th>Details</th>
           </tr>
         </thead>
         <tbody>

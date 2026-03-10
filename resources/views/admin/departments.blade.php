@@ -23,14 +23,14 @@
     @endif
 
     <!-- Stats Summary -->
-    <div class="stats-summary" style="display: flex; gap: 20px; margin-bottom: 20px;">
+    <div class="stats-grid" style="margin-bottom: 2rem;">
         <div class="stat-card">
             <h4>Total Departments</h4>
-            <p style="font-size: 24px; font-weight: bold;">{{ $departments->count() }}</p>
+            <p class="stat-number">{{ $departments->count() }}</p>
         </div>
         <div class="stat-card">
             <h4>Total Users</h4>
-            <p style="font-size: 24px; font-weight: bold;">{{ $departments->sum('regular_users_count') }}</p>
+            <p class="stat-number">{{ $departments->sum('regular_users_count') }}</p>
         </div>
     </div>
 
@@ -44,7 +44,6 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Department Name</th>
                         <th>Total Users</th>
                         <th>Created</th>
@@ -54,7 +53,7 @@
                 <tbody>
                     @forelse($departments as $department)
                         <tr>
-                            <td>#{{ $department->id }}</td>
+                    
                             <td>
                                 <strong>{{ $department->name }}</strong>
                                 @if($department->description)

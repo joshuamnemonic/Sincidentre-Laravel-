@@ -98,6 +98,12 @@
                 <span class="nav-icon">📜</span>
                 <span class="nav-text">Activity Logs</span>
             </a>
+
+            <a href="{{ route('admin.profile') }}"
+               class="nav-link {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
+                <span class="nav-icon">👤</span>
+                <span class="nav-text">My Profile</span>
+            </a>
         </nav>
 
         <!-- Logout Section -->

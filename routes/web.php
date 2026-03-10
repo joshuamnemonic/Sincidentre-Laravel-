@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AdminProfileController;
 
 
 Route::get('/', function () {
@@ -195,4 +196,10 @@ Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(
     // Export Analytics
     Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
     
+});
+
+// Admin Profile Routes
+Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/profile', [AdminProfileController::class, 'show'])->name('profile');
+    Route::patch('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
 });

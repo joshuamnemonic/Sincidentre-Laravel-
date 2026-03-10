@@ -95,7 +95,7 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="action-buttons">
+                                <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                     <a href="{{ route('admin.users.show', $user->id) }}" class="btn-view">View</a>
                                     
                                     @if(!$user->is_admin)

@@ -12,13 +12,13 @@
     @endif
 
     <!-- Add Category Form -->
-    <section>
+    <section style="margin-bottom: 30px;">
         <h2>Add New Category</h2>
-        <form action="{{ route('admin.categories.store') }}" method="POST" class="category-form">
+        <form action="{{ route('admin.categories.store') }}" method="POST" class="category-form" style="display: flex; gap: 10px; align-items: center;">
             @csrf
-            <label for="categoryName">Category Name:</label>
-            <input type="text" id="categoryName" name="categoryName" required>
-            <button type="submit">Add Category</button>
+            <label for="categoryName" style="margin: 0; font-weight: 500;">Category Name:</label>
+            <input type="text" id="categoryName" name="categoryName" required style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 250px;">
+            <button type="submit" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; white-space: nowrap;">Add Category</button>
         </form>
     </section>
 
@@ -29,17 +29,13 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Category Name</th>
-                        <th>Date Created</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($categories as $category)
                         <tr>
-                            <td>{{ $category->id }}</td>
                             <td>{{ $category->name }}</td>
-                            <td>{{ $category->created_at ? $category->created_at->format('Y-m-d') : 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>
