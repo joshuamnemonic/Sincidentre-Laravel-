@@ -68,4 +68,9 @@ class Report extends Model
     {
         return $this->hasMany(Activity::class);
     }
+
+    public function responses()
+    {
+        return $this->hasMany(ReportResponse::class);
+    }
 }

@@ -60,7 +60,7 @@
             <a href="{{ route('admin.reports') }}"
                class="nav-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}">
                 <span class="nav-icon">📋</span>
-                <span class="nav-text">Review Queue</span>
+                <span class="nav-text">New Reports</span>
             </a>
 
             <a href="{{ route('admin.handlereports') }}"

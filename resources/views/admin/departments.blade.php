@@ -46,84 +46,22 @@
                     <tr>
                         <th>Department Name</th>
                         <th>Total Users</th>
-                        <th>Created</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($departments as $department)
                         <tr>
-                    
                             <td>
                                 <strong>{{ $department->name }}</strong>
-                                @if($department->description)
-                                    <br>
-                                    <small style="color: #999;">{{ Str::limit($department->description, 60) }}</small>
-                                @endif
                             </td>
                             <td>
                                 <span class="badge">{{ $department->regular_users_count }}</span>
                                 {{ Str::plural('user', $department->regular_users_count) }}
                             </td>
-                            <td>
-                                {{ $department->created_at->format('M d, Y') }}
-                                <br>
-                                <small style="color: #999;">{{ $department->created_at->diffForHumans() }}</small>
-                            </td>
-                            <td>
-                                <button onclick="openModal('editDepartmentModal{{ $department->id }}')" class="btn-edit">
-                                    ✏️ Edit
-                                </button>
-                                <form action="{{ route('admin.departments.destroy', $department->id) }}" 
-                                      method="POST" 
-                                      style="display:inline;"
-                                      onsubmit="return confirm('Are you sure you want to delete {{ $department->name }}? This action cannot be undone.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn-delete">🗑️ Delete</button>
-                                </form>
-                            </td>
                         </tr>
-
-                        <!-- Edit Department Modal -->
-                        <div id="editDepartmentModal{{ $department->id }}" class="modal">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h3>Edit Department</h3>
-                                    <span class="close" onclick="closeModal('editDepartmentModal{{ $department->id }}')">&times;</span>
-                                </div>
-                                <form action="{{ route('admin.departments.update', $department->id) }}" method="POST">
-                                    @csrf
-                                    @method('PUT')
-                                    <div class="form-group">
-                                        <label for="edit_name_{{ $department->id }}">Department Name *</label>
-                                        <input type="text" 
-                                               id="edit_name_{{ $department->id }}"
-                                               name="name" 
-                                               value="{{ $department->name }}" 
-                                               placeholder="e.g., College of Engineering"
-                                               required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit_description_{{ $department->id }}">Description (Optional)</label>
-                                        <textarea name="description" 
-                                                  id="edit_description_{{ $department->id }}"
-                                                  rows="3" 
-                                                  placeholder="Brief description of this department">{{ $department->description }}</textarea>
-                                        <small style="color: #666;">This will appear as a subtitle in the table</small>
-                                    </div>
-                                    <div class="modal-actions">
-                                        <button type="button" onclick="closeModal('editDepartmentModal{{ $department->id }}')" class="btn-cancel">
-                                            Cancel
-                                        </button>
-                                        <button type="submit" class="btn-submit">Update Department</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
                     @empty
                         <tr>
-                            <td colspan="5" style="text-align:center; padding: 40px;">
+                            <td colspan="2" style="text-align:center; padding: 40px;">
                                 <p style="color: #999; margin: 0;">No departments found.</p>
                                 <small>Click "Add Department" to create your first department!</small>
                             </td>
@@ -141,7 +79,7 @@
                 <h3>Add New Department</h3>
                 <span class="close" onclick="closeModal('addDepartmentModal')">&times;</span>
             </div>
-            <form action="{{ route('admin.departments.store') }}" method="POST">
+            <form id="addDepartmentForm" action="{{ route('admin.departments.store') }}" method="POST">
                 @csrf
                 <div class="form-group">
                     <label for="add_name">Department Name *</label>
@@ -151,21 +89,28 @@
                            placeholder="e.g., College of Engineering" 
                            required>
                 </div>
-                <div class="form-group">
-                    <label for="add_description">Description (Optional)</label>
-                    <textarea name="description" 
-                              id="add_description"
-                              rows="3" 
-                              placeholder="Brief description of this department"></textarea>
-                    <small style="color: #666;">This will appear as a subtitle in the table</small>
-                </div>
                 <div class="modal-actions">
                     <button type="button" onclick="closeModal('addDepartmentModal')" class="btn-cancel">
                         Cancel
                     </button>
-                    <button type="submit" class="btn-submit">Add Department</button>
+                    <button type="button" onclick="confirmAddDepartment()" class="btn-submit">Add Department</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Confirm Add Department Modal -->
+    <div id="confirmDepartmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm New Department</h3>
+                <span class="close" onclick="document.getElementById('confirmDepartmentModal').style.display='none'">&times;</span>
+            </div>
+            <p style="padding: 1rem 1.875rem;">Are you sure you want to add <strong id="confirmDepartmentName"></strong> as a new department?</p>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('confirmDepartmentModal').style.display='none'">Cancel</button>
+                <button type="button" class="btn-submit" onclick="document.getElementById('addDepartmentForm').submit()">Yes, Add Department</button>
+            </div>
         </div>
     </div>
 @endsection
@@ -204,6 +149,31 @@
                 e.stopPropagation();
             }
         });
+    });
+
+    function confirmAddDepartment() {
+        const name = document.getElementById('add_name').value.trim();
+        if (!name) {
+            document.getElementById('add_name').reportValidity();
+            return;
+        }
+        document.getElementById('confirmDepartmentName').textContent = '"' + name + '"';
+        closeModal('addDepartmentModal');
+        document.getElementById('confirmDepartmentModal').style.display = 'flex';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.modal').forEach(function(m) {
+            document.body.appendChild(m);
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(function(m) {
+                m.style.display = 'none';
+            });
+        }
     });
 </script>
 @endpush

@@ -12,85 +12,22 @@ use Illuminate\Support\Facades\Auth;
 class ReportManagementController extends Controller
 {
     /**
-     * Display a listing of the reports (Review Queue) - filtered by department.
+     * Display a listing of pending reports for the admin's department.
      */
     public function index(Request $request)
     {
         $admin = Auth::user();
         $departmentId = $admin->department_id;
 
-        $query = Report::with(['user', 'category']) // eager load reporter and category
-            ->whereIn('status', ['Pending', 'Under Review'])
+        $reports = Report::with(['user', 'category'])
+            ->whereRaw('LOWER(status) = ?', ['pending'])
             ->whereHas('user', function($q) use ($departmentId) {
                 $q->where('department_id', $departmentId);
-            });
+            })
+            ->orderBy('incident_date', 'desc')
+            ->get();
 
-        // 🔍 Search filter (from header search)
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%$search%")
-                  ->orWhere('description', 'like', "%$search%")
-                  ->orWhereHas('user', function ($u) use ($search) {
-                      $u->where('first_name', 'like', "%$search%")
-                        ->orWhere('last_name', 'like', "%$search%")
-                        ->orWhere('email', 'like', "%$search%");
-                  });
-            });
-        }
-
-        // FILTER: Category
-        if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
-        }
-
-        // FILTER: Status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // FILTER: Reporter name
-        if ($request->filled('reporter')) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('first_name', 'like', '%' . $request->reporter . '%')
-                  ->orWhere('last_name', 'like', '%' . $request->reporter . '%');
-            });
-        }
-
-        // FILTER: Date range
-        if ($request->filled('from') && $request->filled('to')) {
-            $query->whereBetween('incident_date', [
-                $request->from,
-                $request->to
-            ]);
-        } elseif ($request->filled('from')) {
-            $query->whereDate('incident_date', '>=', $request->from);
-        } elseif ($request->filled('to')) {
-            $query->whereDate('incident_date', '<=', $request->to);
-        }
-
-        $reports = $query->orderBy('incident_date', 'desc')->get();
-
-        // Get all categories for filter dropdown
-        $categories = Category::all();
-
-        // Get status counts for quick stats
-        $statusCounts = [
-            'pending' => Report::where('status', 'Pending')
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'approved' => Report::where('status', 'Approved')
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'rejected' => Report::where('status', 'Rejected')
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'under_review' => Report::where('status', 'Under Review')
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-        ];
-
-        return view('admin.reports', compact('reports', 'categories', 'statusCounts'));
+        return view('admin.reports', compact('reports'));
     }
 
     /**

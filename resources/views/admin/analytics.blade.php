@@ -16,7 +16,7 @@
         <form method="GET" action="{{ route('admin.analytics') }}" class="filter-form">
             <div class="form-group">
                 <label for="period">Time Period:</label>
-                <select name="period" id="period" style="padding: 8px; min-width: 150px;" onchange="this.form.submit()">
+                <select name="period" id="period" onchange="this.form.submit()">
                     <option value="week" {{ request('period', 'month') == 'week' ? 'selected' : '' }}>Last 7 Days</option>
                     <option value="month" {{ request('period', 'month') == 'month' ? 'selected' : '' }}>Last 30 Days</option>
                     <option value="quarter" {{ request('period', 'month') == 'quarter' ? 'selected' : '' }}>Last 3 Months</option>
@@ -27,17 +27,18 @@
 
             <div class="form-group">
                 <label for="custom_from">Custom Range (From):</label>
-                <input type="date" name="custom_from" id="custom_from" value="{{ request('custom_from') }}" style="padding: 8px;">
+                <input type="date" name="custom_from" id="custom_from" value="{{ request('custom_from') }}">
             </div>
 
             <div class="form-group">
                 <label for="custom_to">To:</label>
-                <input type="date" name="custom_to" id="custom_to" value="{{ request('custom_to') }}" style="padding: 8px;">
+                <input type="date" name="custom_to" id="custom_to" value="{{ request('custom_to') }}">
             </div>
 
-            <button type="submit" class="btn-filter" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Apply
-            </button>
+            <div class="form-group">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn-primary btn-filter" style="width: 100%;">Apply</button>
+            </div>
         </form>
     </section>
 
@@ -60,7 +61,7 @@
     <!-- KEY METRICS -->
     <section style="margin-bottom: 30px;">
         <h2>📈 Key Metrics</h2>
-        <div class="stat-cards">
+        <div class="stat-cards" style="grid-template-columns: minmax(0, 1fr); max-width: 380px; margin-inline: auto;">
             <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <h4>Total Reports</h4>
                 <p>{{ $totalReports }}</p>

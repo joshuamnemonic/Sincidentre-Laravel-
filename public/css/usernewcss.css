@@ -5,6 +5,53 @@
    Blue Glassmorphism Theme
    ============================================ */
 
+:root {
+  --primary-dark: #0f2167;
+  --primary: #1e3a8a;
+  --primary-mid: #1a56db;
+  --primary-bright: #2563eb;
+  --primary-light: #3b82f6;
+  --primary-accent: #60a5fa;
+  --primary-pale: #93c5fd;
+
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-bg-hover: rgba(255, 255, 255, 0.18);
+  --glass-bg-active: rgba(255, 255, 255, 0.22);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border-hover: rgba(255, 255, 255, 0.32);
+  --glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.88);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-faint: rgba(255, 255, 255, 0.55);
+
+  --sidebar-width: 280px;
+  --min-touch: 44px;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Status badge colors */
+  --status-pending-bg:    rgba(251, 191, 36, 0.2);
+  --status-pending-border: rgba(251, 191, 36, 0.5);
+  --status-pending-color:  #fcd34d;
+
+  --status-approved-bg:    rgba(96, 165, 250, 0.2);
+  --status-approved-border: rgba(96, 165, 250, 0.5);
+  --status-approved-color:  #93c5fd;
+
+  --status-resolved-bg:    rgba(74, 222, 128, 0.2);
+  --status-resolved-border: rgba(74, 222, 128, 0.5);
+  --status-resolved-color:  #86efac;
+
+  --status-rejected-bg:    rgba(252, 165, 165, 0.2);
+  --status-rejected-border: rgba(252, 165, 165, 0.5);
+  --status-rejected-color:  #fca5a5;
+
+  --status-review-bg:    rgba(167, 139, 250, 0.2);
+  --status-review-border: rgba(167, 139, 250, 0.5);
+  --status-review-color:  #c4b5fd;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -54,14 +101,15 @@ html {
 
 body {
   font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-mid) 50%, var(--primary-light) 100%);
+  background-attachment: fixed;
   min-height: 100vh;
-  display: flex;
   margin: 0;
   position: relative;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  color: var(--text-secondary);
 }
 
 /* Animated Background Circles - EXACTLY LIKE LOGIN */
@@ -96,20 +144,21 @@ body::after {
    ============================================ */
 
 .sidebar {
-  width: 280px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: var(--sidebar-width);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.2), var(--glass-glow);
   display: flex;
   flex-direction: column;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
   overflow-y: auto;
   z-index: 100;
-  animation: slideInLeft 0.6s ease-out;
+  animation: slideInLeft 0.45s ease-out both;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -378,12 +427,14 @@ body::after {
    ============================================ */
 
 .dashboard {
-  flex: 1;
-  padding: 3rem;
+  margin-left: var(--sidebar-width);
+  padding: 2.5rem 3rem;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
   position: relative;
   z-index: 1;
   overflow-y: auto;
-  animation: fadeIn 0.8s ease-out;
+  animation: fadeIn 0.45s ease-out both;
 }
 
 /* Welcome Message */
@@ -409,7 +460,7 @@ body::after {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 1.5rem;
   margin-bottom: 3rem;
 }
@@ -420,7 +471,7 @@ body::after {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 1.5rem;
-  padding: 2rem 1.5rem;
+  padding: 1.5rem 1rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
   text-align: center;
@@ -433,6 +484,7 @@ body::after {
 .card.animate:nth-child(3) { animation-delay: 0.3s; }
 .card.animate:nth-child(4) { animation-delay: 0.4s; }
 .card.animate:nth-child(5) { animation-delay: 0.5s; }
+.card.animate:nth-child(6) { animation-delay: 0.6s; }
 
 .card:hover {
   transform: translateY(-8px);
@@ -450,7 +502,7 @@ body::after {
 }
 
 .card p {
-  font-size: 3.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   color: white;
   margin: 0;
@@ -712,6 +764,28 @@ button[type="submit"]:hover,
   white-space: nowrap;
 }
 
+.filter-bar {
+  align-items: center;
+}
+
+.filter-bar input[type="text"] {
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-bar select {
+  flex: none;
+  min-width: 160px;
+}
+
+.filter-bar a.btn-secondary {
+  flex: none;
+  padding: 1.1rem 1.5rem;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .btn-secondary,
 .cancel-btn,
 a.btn {
@@ -798,9 +872,12 @@ tbody tr:last-child td {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid;
+  white-space: nowrap;
+  /* fallback */
+  background: rgba(255, 255, 255, 0.15);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .status::before {
@@ -809,7 +886,47 @@ tbody tr:last-child td {
   height: 8px;
   border-radius: 50%;
   background: currentColor;
+  flex-shrink: 0;
   animation: pulse 2s infinite;
+}
+
+/* Pending — Amber */
+.status.pending,
+.status.Pending {
+  background: var(--status-pending-bg);
+  border-color: var(--status-pending-border);
+  color: var(--status-pending-color);
+}
+
+/* Approved — Blue */
+.status.approved,
+.status.Approved {
+  background: var(--status-approved-bg);
+  border-color: var(--status-approved-border);
+  color: var(--status-approved-color);
+}
+
+/* Under Review — Purple */
+.status.under-review {
+  background: var(--status-review-bg);
+  border-color: var(--status-review-border);
+  color: var(--status-review-color);
+}
+
+/* Resolved — Green */
+.status.resolved,
+.status.Resolved {
+  background: var(--status-resolved-bg);
+  border-color: var(--status-resolved-border);
+  color: var(--status-resolved-color);
+}
+
+/* Rejected — Red */
+.status.rejected,
+.status.Rejected {
+  background: var(--status-rejected-bg);
+  border-color: var(--status-rejected-border);
+  color: var(--status-rejected-color);
 }
 
 /* ============================================
@@ -1149,20 +1266,50 @@ tbody tr:last-child td {
 }
 
 /* ============================================
+   RESPONSIVE - EXTRA LARGE DESKTOP
+   ============================================ */
+
+@media (min-width: 1440px) {
+  :root {
+    --sidebar-width: 300px;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width);
+  }
+
+  .dashboard {
+    margin-left: var(--sidebar-width);
+    padding: 2.5rem 4rem;
+  }
+}
+
+/* ============================================
+   RESPONSIVE - LARGE DESKTOP
+   ============================================ */
+
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .dashboard {
+    padding: 2.5rem 3.25rem;
+  }
+}
+
+/* ============================================
    RESPONSIVE - TABLETS
    ============================================ */
 
 @media (max-width: 1024px) {
   .sidebar {
-    width: 260px;
+    width: 255px;
   }
 
   .dashboard {
-    padding: 2.5rem;
+    margin-left: 255px;
+    padding: 2rem;
   }
 
   .cards {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
@@ -1184,8 +1331,10 @@ tbody tr:last-child td {
     width: 280px;
     height: 100vh;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: transform var(--transition-smooth);
     z-index: 99;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .sidebar.active {
@@ -1193,9 +1342,12 @@ tbody tr:last-child td {
   }
 
   .dashboard {
-    padding: 2rem 1.5rem;
-    margin-top: 4.5rem;
-    width: 100%;
+    margin-left: 0;
+    padding: 1.625rem 1.2rem;
+    padding-top: 4.875rem;
+    padding-left: max(1.2rem, env(safe-area-inset-left));
+    padding-right: max(1.2rem, env(safe-area-inset-right));
+    padding-bottom: max(1.625rem, env(safe-area-inset-bottom));
   }
 
   .welcome {
@@ -1203,7 +1355,7 @@ tbody tr:last-child td {
   }
 
   .cards {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }
 
@@ -1240,12 +1392,11 @@ tbody tr:last-child td {
 
 @media (max-width: 480px) {
   .dashboard {
-    padding: 1.5rem 1rem;
-    margin-top: 4rem;
-    padding-top: max(1.5rem, env(safe-area-inset-top));
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
+    padding: 1.15rem 0.95rem;
+    padding-top: 4.625rem;
+    padding-left: max(0.95rem, env(safe-area-inset-left));
+    padding-right: max(0.95rem, env(safe-area-inset-right));
+    padding-bottom: max(1.15rem, env(safe-area-inset-bottom));
   }
 
   .sidebar {
@@ -1265,7 +1416,7 @@ tbody tr:last-child td {
   }
 
   .cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .card {
@@ -1273,7 +1424,7 @@ tbody tr:last-child td {
   }
 
   .card p {
-    font-size: 3rem;
+    font-size: 2.5rem;
   }
 
   .user-avatar {
@@ -1306,11 +1457,31 @@ tbody tr:last-child td {
 }
 
 /* ============================================
+   RESPONSIVE - VERY SMALL MOBILE
+   ============================================ */
+
+@media (max-width: 375px) {
+  .dashboard {
+    padding: 0.95rem 0.825rem;
+    padding-top: 4.375rem;
+    padding-bottom: max(0.95rem, env(safe-area-inset-bottom));
+  }
+
+  .sidebar {
+    width: 240px;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================================
    ACCESSIBILITY
    ============================================ */
 
 *:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline: 2px solid var(--primary-accent);
   outline-offset: 2px;
 }
 

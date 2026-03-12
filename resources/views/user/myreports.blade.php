@@ -9,14 +9,31 @@
 
     <!-- Reports Table -->
     <div class="recent-reports animate">
+        <form method="GET" action="{{ route('myreports') }}" class="filter-bar">
+            <input type="text" name="search" placeholder="🔍 Search reports..."
+                   value="{{ $search ?? '' }}" />
+            <select name="status">
+                <option value="">All Statuses</option>
+                @foreach(['Pending', 'Approved', 'Rejected', 'Under Review', 'Resolved'] as $s)
+                    <option value="{{ $s }}" {{ (isset($status) && strtolower($status) === strtolower($s)) ? 'selected' : '' }}>
+                        {{ $s }}
+                    </option>
+                @endforeach
+            </select>
+            <button type="submit">Filter</button>
+            @if($search || $status)
+                <a href="{{ route('myreports') }}" class="btn-secondary">Clear</a>
+            @endif
+        </form>
+
         <table class="report-table">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Title</th>
                     <th>Category</th>
-                    <th>Date</th>
-                    <th>Time</th>
+                    <th>Date of Incident</th>
+                    <th>Time of Incident</th>
                     <th>Location</th>
                     <th>Status</th>
                 </tr>

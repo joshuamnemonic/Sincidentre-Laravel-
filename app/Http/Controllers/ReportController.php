@@ -25,13 +25,14 @@ class ReportController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'         => 'required|string|max:255',
-            'category_id'   => 'required|exists:categories,id',
-            'description'   => 'required|string',
-            'incident_date' => 'required|date',
-            'incident_time' => 'required',
-            'location'      => 'required|string|max:255',
-            'evidence.*'    => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov,avi,pdf|max:10240',
+            'title'            => 'required|string|max:255',
+            'category_id'      => 'required|exists:categories,id',
+            'description'      => 'required|string',
+            'incident_date'    => 'required|date',
+            'incident_time'    => 'required',
+            'location'         => 'required|string|max:255',
+            'location_details' => 'nullable|string|max:255',
+            'evidence.*'       => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov,avi,pdf|max:10240',
         ]);
 
         $evidencePaths = [];
@@ -42,13 +43,19 @@ class ReportController extends Controller
             }
         }
 
+        // Combine location and details
+        $location = $validated['location'];
+        if (!empty($validated['location_details'])) {
+            $location .= ' - ' . $validated['location_details'];
+        }
+
         $report = Report::create([
             'title'         => $validated['title'],
             'category_id'   => $validated['category_id'],
             'description'   => $validated['description'],
             'incident_date' => $validated['incident_date'],
             'incident_time' => $validated['incident_time'],
-            'location'      => $validated['location'],
+            'location'      => $location,
             'evidence'      => !empty($evidencePaths) ? json_encode($evidencePaths) : null,
             'submitted_at'  => now(),
             'status'        => 'Pending',
@@ -62,7 +69,12 @@ class ReportController extends Controller
     }
 
     public function show($id) {
-        $report = Report::findOrFail($id);
+        $report = Report::with([
+            'category',
+            'responses.admin',
+            'activities.admin',
+        ])->findOrFail($id);
+
         return view('user.reportshow', compact('report'));
     }
 

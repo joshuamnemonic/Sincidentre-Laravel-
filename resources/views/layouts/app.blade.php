@@ -31,7 +31,7 @@
                 <img src="{{ asset('images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="sidebar-logo">
                 <div class="logo-text">
                     <h2>SINCIDENTRE</h2>
-                    <span class="logo-tagline">Incident Reporting</span>
+                    <span class="logo-tagline">User Panel</span>
                 </div>
             </div>
         </div>

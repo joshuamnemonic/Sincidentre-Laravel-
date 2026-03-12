@@ -19,26 +19,30 @@
 @section('content')
     <!-- Stats Cards -->
     <section class="stats">
-        <div class="card">
-            <h3>Total Reports</h3>
-            <p>{{ $totalReports }}</p>
-        </div>
-        <div class="card">
-            <h3>Pending</h3>
-            <p>{{ $pendingReports }}</p>
-        </div>
-        <div class="card">
-            <h3>Under Review</h3>
-            <p>{{ $underReview }}</p>
-        </div>
-        <div class="card">
-            <h3>Resolved</h3>
-            <p>{{ $resolvedReports }}</p>
-        </div>
-        <div class="card">
+        <a href="{{ route('admin.users') }}" class="card card-link">
             <h3>Total Users</h3>
             <p>{{ $totalUsers }}</p>
-        </div>
+        </a>
+        <a href="{{ route('admin.handlereports', ['status' => 'Pending']) }}" class="card card-link">
+            <h3>Pending</h3>
+            <p>{{ $pendingReports }}</p>
+        </a>
+        <a href="{{ route('admin.handlereports', ['status' => 'Approved']) }}" class="card card-link">
+            <h3>Approved</h3>
+            <p>{{ $approvedReports }}</p>
+        </a>
+        <a href="{{ route('admin.handlereports', ['status' => 'Rejected']) }}" class="card card-link">
+            <h3>Rejected</h3>
+            <p>{{ $rejectedReports }}</p>
+        </a>
+        <a href="{{ route('admin.handlereports', ['status' => 'Under Review']) }}" class="card card-link">
+            <h3>Under Review</h3>
+            <p>{{ $underReview }}</p>
+        </a>
+        <a href="{{ route('admin.handlereports', ['status' => 'Resolved']) }}" class="card card-link">
+            <h3>Resolved</h3>
+            <p>{{ $resolvedReports }}</p>
+        </a>
     </section>
 
     <!-- Reports Table -->

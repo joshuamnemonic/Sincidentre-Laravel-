@@ -33,10 +33,11 @@ class DashboardController extends Controller
 
         // Counts for this user
         $totalReports    = Report::where('user_id', $userId)->count();
-        $pendingReports  = Report::where('user_id', $userId)->where('status', 'Pending')->count();
-        $resolvedReports = Report::where('user_id', $userId)->where('status', 'Resolved')->count();
-        $rejectedReports = Report::where('user_id', $userId)->where('status', 'Rejected')->count();
-        $approvedReports = Report::where('user_id', $userId)->where('status', 'Approved')->count();
+        $pendingReports  = Report::where('user_id', $userId)->whereRaw('LOWER(status) = ?', ['pending'])->count();
+        $resolvedReports = Report::where('user_id', $userId)->whereRaw('LOWER(status) = ?', ['resolved'])->count();
+        $rejectedReports = Report::where('user_id', $userId)->whereRaw('LOWER(status) = ?', ['rejected'])->count();
+        $approvedReports = Report::where('user_id', $userId)->whereRaw('LOWER(status) = ?', ['approved'])->count();
+        $underReviewReports = Report::where('user_id', $userId)->whereRaw('LOWER(status) = ?', ['under review'])->count();
 
         return view('user.dashboard', compact(
             'totalReports',
@@ -45,6 +46,7 @@ class DashboardController extends Controller
             'recentReports',
             'rejectedReports',
             'approvedReports',
+            'underReviewReports',
             'search'
         ));
     }

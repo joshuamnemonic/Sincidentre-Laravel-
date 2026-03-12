@@ -3,7 +3,7 @@
 @section('title', 'Report Details - Sincidentre')
 
 @section('content')
-    <header>
+    <header class="page-header">
         <h1>Report Details</h1>
         <p>Report ID: #{{ $report->id }}</p>
     </header>
@@ -21,11 +21,11 @@
                 <p>{{ $report->category->name ?? 'N/A' }}</p> <!-- ✅ FIXED -->
             </div>
             <div class="detail-item">
-                <label>Date</label>
+                <label>Date of Incident</label>
                 <p>{{ \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') }}</p> <!-- ✅ Better formatting -->
             </div>
             <div class="detail-item">
-                <label>Time</label>
+                <label>Time of Incident</label>
                 <p>{{ \Carbon\Carbon::parse($report->incident_time)->format('h:i A') }}</p> <!-- ✅ Better formatting -->
             </div>
             <div class="detail-item">
@@ -87,56 +87,81 @@
         @endif
     </section>
 
-    <!-- Admin Response Section -->
-    <section id="admin-response" class="animate">
-        @if($report->status === 'Rejected' && $report->rejection_reason)
-            {{-- Report was rejected - show rejection reason --}}
-            <h2>❌ Report Rejected</h2>
-            <div class="details-grid">
-                <div class="detail-item full-width" style="background-color: #fee; padding: 15px; border-left: 4px solid #d00;">
-                    <label style="color: #d00;">Reason for Rejection</label>
-                    <p>{{ $report->rejection_reason }}</p>
-                </div>
-            </div>
+    <!-- Unified Admin Response Timeline -->
+    <section id="admin-response-timeline" class="animate">
+        <h2>📋 Admin Response Timeline</h2>
 
-        @elseif($report->assigned_to || $report->department || $report->target_date || $report->remarks)
-            {{-- Report is being handled - show handling details --}}
-            <h2>🛠 Admin Handling Details</h2>
-            <div class="details-grid">
-                <div class="detail-item">
-                    <label>Assigned To</label>
-                    <p>{{ $report->assigned_to ?? 'Not yet assigned' }}</p>
-                </div>
-                <div class="detail-item">
-                    <label>Department</label>
-                    <p>{{ $report->department ?? 'N/A' }}</p>
-                </div>
-                <div class="detail-item">
-                    <label>Target Date</label>
-                    <p>{{ $report->target_date ? \Carbon\Carbon::parse($report->target_date)->format('F d, Y') : 'No target date set' }}</p>
-                </div>
-                <div class="detail-item full-width">
-                    <label>Admin Remarks</label>
-                    <p>{{ $report->remarks ?? 'No remarks yet' }}</p>
-                </div>
-            </div>
-
-        @else
-            {{-- Report is pending - no response yet --}}
-            <h2>🕓 Awaiting Admin Response</h2>
-            <p class="no-data">Your report is still pending review or has not been handled by the admin yet.</p>
-        @endif
-    </section>
-
-    <!-- Activity Timeline Section -->
-    <section id="activity-timeline" class="animate">
-        <h2>📋 Activity Timeline</h2>
-        
         @php
-            $activities = $report->activities()->orderBy('created_at', 'desc')->get();
+            $responses = $report->responses->sortByDesc('response_number');
+            $activities = $report->activities->sortByDesc('created_at');
         @endphp
 
-        @if($activities->count() > 0)
+        @if($responses->count() > 0)
+            <div class="timeline">
+                @foreach($responses as $response)
+                    <div class="timeline-item">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <strong>Response #{{ $response->response_number }}</strong>
+                                <span class="timeline-date">{{ $response->created_at->format('M d, Y h:i A') }}</span>
+                            </div>
+
+                            <div class="timeline-status-change">
+                                Status: <span class="new-status">{{ ucfirst($response->status) }}</span>
+                            </div>
+
+                            <div class="timeline-remarks">
+                                <strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}
+                            </div>
+                            <div class="timeline-remarks">
+                                <strong>Department:</strong> {{ $response->department ?? 'N/A' }}
+                            </div>
+                            <div class="timeline-remarks">
+                                <strong>Target date:</strong>
+                                {{ $response->target_date ? \Carbon\Carbon::parse($response->target_date)->format('F d, Y') : 'No target date set' }}
+                            </div>
+                            <div class="timeline-remarks">
+                                <strong>Remarks:</strong> {{ $response->remarks ?? 'No remarks' }}
+                            </div>
+
+                            <div class="timeline-footer">
+                                By: <strong>{{ $response->admin->name ?? 'Unknown Admin' }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @elseif($report->assigned_to || $report->department || $report->target_date || $report->remarks)
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <strong>Initial Handling Details</strong>
+                            <span class="timeline-date">{{ $report->updated_at->format('M d, Y h:i A') }}</span>
+                        </div>
+
+                        <div class="timeline-status-change">
+                            Status: <span class="new-status">{{ ucfirst($report->status) }}</span>
+                        </div>
+                        <div class="timeline-remarks">
+                            <strong>Assigned to:</strong> {{ $report->assigned_to ?? 'Unassigned' }}
+                        </div>
+                        <div class="timeline-remarks">
+                            <strong>Department:</strong> {{ $report->department ?? 'N/A' }}
+                        </div>
+                        <div class="timeline-remarks">
+                            <strong>Target date:</strong>
+                            {{ $report->target_date ? \Carbon\Carbon::parse($report->target_date)->format('F d, Y') : 'No target date set' }}
+                        </div>
+                        <div class="timeline-remarks">
+                            <strong>Remarks:</strong> {{ $report->remarks ?? 'No remarks' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @elseif($activities->count() > 0)
             <div class="timeline">
                 @foreach($activities as $activity)
                     <div class="timeline-item">
@@ -146,12 +171,12 @@
                                 <strong>{{ $activity->action }}</strong>
                                 <span class="timeline-date">{{ $activity->created_at->format('M d, Y h:i A') }}</span>
                             </div>
-                            
+
                             @if($activity->old_status && $activity->new_status)
                                 <div class="timeline-status-change">
-                                    Status changed: 
-                                    <span class="old-status">{{ ucfirst($activity->old_status) }}</span> 
-                                    → 
+                                    Status changed:
+                                    <span class="old-status">{{ ucfirst($activity->old_status) }}</span>
+                                    →
                                     <span class="new-status">{{ ucfirst($activity->new_status) }}</span>
                                 </div>
                             @endif
@@ -163,20 +188,31 @@
                             @endif
 
                             <div class="timeline-footer">
-                                By: <strong>
-        @if($activity->admin)
-          {{ $activity->admin->name }}
-        @else
-          Unknown Admin
-        @endif
-      </strong> <!-- ✅ FIXED -->
+                                By: <strong>{{ $activity->admin->name ?? 'Unknown Admin' }}</strong>
                             </div>
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
-            <p class="no-data">No activity recorded yet for this report.</p>
+            <p class="no-data">Your report is still pending review or has no admin response yet.</p>
+        @endif
+
+        @if($report->status === 'Rejected' && $report->rejection_reason)
+            <div class="timeline" style="margin-top: 12px;">
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content" style="border-left: 4px solid #d00;">
+                        <div class="timeline-header">
+                            <strong>Report Rejected</strong>
+                            <span class="timeline-date">{{ $report->updated_at->format('M d, Y h:i A') }}</span>
+                        </div>
+                        <div class="timeline-remarks">
+                            <strong>Reason:</strong> {{ $report->rejection_reason }}
+                        </div>
+                    </div>
+                </div>
+            </div>
         @endif
     </section>
 @endsection

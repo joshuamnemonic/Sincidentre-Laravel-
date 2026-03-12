@@ -21,14 +21,35 @@
         </div>
     @endif
 
-    <!-- Approved Reports Table -->
+     <!-- Report Flow + Handle Reports Table -->
     <section id="handle-reports"> 
-        <h2>Approved Reports List</h2>
-        <p>These reports have been approved and are ready to be handled.</p>
+          <div style="margin-bottom: 20px;">
+                <h2>Report Flow</h2>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                     <a href="{{ route('admin.reports') }}"
+                         style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none;">Pending</a>
+                     <span>&gt;</span>
+                     <a href="{{ route('admin.handlereports', ['status' => 'approved']) }}"
+                         style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; {{ ($selectedStatus ?? '') === 'approved' ? 'font-weight: 700; border-color: #333;' : '' }}">Approved</a>
+                     <span>/</span>
+                     <a href="{{ route('admin.handlereports', ['status' => 'rejected']) }}"
+                         style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; {{ ($selectedStatus ?? '') === 'rejected' ? 'font-weight: 700; border-color: #333;' : '' }}">Rejected</a>
+                     <span>&gt;</span>
+                     <a href="{{ route('admin.handlereports', ['status' => 'under review']) }}"
+                         style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; {{ ($selectedStatus ?? '') === 'under review' ? 'font-weight: 700; border-color: #333;' : '' }}">Under Review</a>
+                     <span>&gt;</span>
+                     <a href="{{ route('admin.handlereports', ['status' => 'resolved']) }}"
+                         style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; {{ ($selectedStatus ?? '') === 'resolved' ? 'font-weight: 700; border-color: #333;' : '' }}">Resolved</a>
+                     <a href="{{ route('admin.handlereports') }}" style="margin-left: 8px; text-decoration: none;">Show All</a>
+                </div>
+          </div>
 
         <!-- Filter Form -->
         <div class="filter-container" style="margin-bottom: 20px;">
             <form method="GET" action="{{ route('admin.handlereports') }}" style="display: flex; gap: 10px; align-items: center;">
+                @if(($selectedStatus ?? '') !== '')
+                    <input type="hidden" name="status" value="{{ $selectedStatus }}">
+                @endif
                 <label for="category_filter">Filter by Category:</label>
                 <select name="category" id="category_filter" style="padding: 8px; min-width: 200px;">
                     <option value="">All Categories</option>
@@ -40,7 +61,7 @@
                 </select>
                 <button type="submit" class="btn-filter" style="padding: 8px 16px;">Apply Filter</button>
                 @if(request('category'))
-                    <a href="{{ route('admin.handlereports') }}" class="btn-clear" style="padding: 8px 16px; text-decoration: none;">Clear Filter</a>
+                    <a href="{{ route('admin.handlereports', array_filter(['status' => $selectedStatus ?? ''])) }}" class="btn-clear" style="padding: 8px 16px; text-decoration: none;">Clear Filter</a>
                 @endif
             </form>
         </div>
@@ -73,12 +94,20 @@
                         </td>
                         <td>{{ $report->assigned_to ?? 'Unassigned' }}</td>
                         <td>
-                            <a href="{{ route('admin.handlereports.show', $report->id) }}" class="btn-handle">Handle</a>
+                            <form action="{{ route('admin.handlereports.show', $report->id) }}" method="GET" style="display: inline;">
+                                <button type="submit" class="btn-handle">Handle</button>
+                            </form>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" style="text-align:center;">No approved reports yet.</td>
+                        <td colspan="8" style="text-align:center;">
+                            @if(($selectedStatus ?? '') !== '')
+                                No {{ ucwords(str_replace('_', ' ', $selectedStatus)) }} reports found.
+                            @else
+                                No reports found for this flow stage.
+                            @endif
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

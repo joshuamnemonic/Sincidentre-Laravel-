@@ -24,12 +24,22 @@ class AdminDashboardController extends Controller
                     $query->where('department_id', $departmentId);
                 })->count(),
 
-            'underReview' => Report::where('status', 'Under Review')
+            'underReview' => Report::whereRaw('LOWER(status) = ?', ['under review'])
                 ->whereHas('user', function($query) use ($departmentId) {
                     $query->where('department_id', $departmentId);
                 })->count(),
 
-            'resolvedReports' => Report::where('status', 'Resolved')
+            'resolvedReports' => Report::whereRaw('LOWER(status) = ?', ['resolved'])
+                ->whereHas('user', function($query) use ($departmentId) {
+                    $query->where('department_id', $departmentId);
+                })->count(),
+
+            'approvedReports' => Report::whereRaw('LOWER(status) = ?', ['approved'])
+                ->whereHas('user', function($query) use ($departmentId) {
+                    $query->where('department_id', $departmentId);
+                })->count(),
+
+            'rejectedReports' => Report::whereRaw('LOWER(status) = ?', ['rejected'])
                 ->whereHas('user', function($query) use ($departmentId) {
                     $query->where('department_id', $departmentId);
                 })->count(),

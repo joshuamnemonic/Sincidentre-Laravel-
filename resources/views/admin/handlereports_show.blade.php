@@ -5,7 +5,7 @@
 @section('page-title', '📝 Handle Report #' . $report->id)
 
 @section('content')
-    <p>Review, assign, and update the report details below.</p>
+    <p>Review the report and add progressive handling responses below.</p>
 
     @if(session('success'))
         <div class="alert alert-success">
@@ -58,7 +58,7 @@
     </section>
 
     <section id="handle-form" style="margin-top: 20px;">
-        <h2>Update Report Details</h2>
+        <h2>Add Handling Response</h2>
 
         <form action="{{ route('admin.handlereports.update', $report->id) }}" method="POST">
             @csrf
@@ -89,11 +89,11 @@
             </div>
 
             <div style="margin-bottom: 10px;">
-                <label><strong>Remarks:</strong></label><br>
+                <label><strong>Remarks for this response:</strong></label><br>
                 <textarea name="remarks" 
                           rows="4" 
                           cols="50" 
-                          placeholder="Add any remarks or notes">{{ old('remarks', $report->remarks) }}</textarea>
+                          placeholder="Add a new response note">{{ old('remarks') }}</textarea>
             </div>
 
             <div style="margin-bottom: 10px;">
@@ -108,10 +108,32 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit">💾 Save Changes</button>
+                <button type="submit">💾 Add Response</button>
                 <a href="{{ route('admin.handlereports') }}" class="btn-secondary">Cancel</a>
             </div>
         </form>
+    </section>
+
+    <section id="response-history" style="margin-top: 20px;">
+        <h2>Response History</h2>
+
+        @forelse($responses as $response)
+            <div style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <strong>Response #{{ $response->response_number }}</strong>
+                    <small>{{ $response->created_at->format('M d, Y h:i A') }}</small>
+                </div>
+
+                <p style="margin: 8px 0 0;"><strong>Handled by:</strong> {{ $response->admin->name ?? 'Unknown Admin' }}</p>
+                <p style="margin: 6px 0 0;"><strong>Status:</strong> {{ ucfirst($response->status) }}</p>
+                <p style="margin: 6px 0 0;"><strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}</p>
+                <p style="margin: 6px 0 0;"><strong>Department:</strong> {{ $response->department ?? 'N/A' }}</p>
+                <p style="margin: 6px 0 0;"><strong>Target date:</strong> {{ $response->target_date ?? 'N/A' }}</p>
+                <p style="margin: 6px 0 0;"><strong>Remarks:</strong> {{ $response->remarks ?? 'No remarks' }}</p>
+            </div>
+        @empty
+            <p>No responses have been recorded yet.</p>
+        @endforelse
     </section>
 
     <!-- Evidence Section (Optional - if you want to show evidence) -->

@@ -215,7 +215,7 @@
             </div>
         @endif
 
-        <a href="{{ route('admin.reports') }}" class="btn-back">⬅ Back to Review Queue</a>
+        <a href="{{ route('admin.reports') }}" class="btn-back">⬅ Back to Pending Queue</a>
     </section>
 
     <!-- Activity Log (if available) -->

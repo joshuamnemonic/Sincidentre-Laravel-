@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\Report;
 use App\Models\Activity;
 use App\Models\Category;
+use App\Models\ReportResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HandleReportsController extends Controller
 {
@@ -16,9 +18,22 @@ class HandleReportsController extends Controller
     {
         $admin = Auth::user();
         $departmentId = $admin->department_id;
+        $allowedStatuses = ['approved', 'rejected', 'under review', 'resolved'];
+        $selectedStatus = strtolower((string) $request->get('status', ''));
+        if (!in_array($selectedStatus, $allowedStatuses, true)) {
+            $selectedStatus = '';
+        }
 
         $query = Report::with(['user', 'category'])
-            ->whereIn('status', ['approved', 'under review', 'resolved'])
+            ->where(function ($q) use ($allowedStatuses) {
+                foreach ($allowedStatuses as $index => $status) {
+                    if ($index === 0) {
+                        $q->whereRaw('LOWER(status) = ?', [$status]);
+                    } else {
+                        $q->orWhereRaw('LOWER(status) = ?', [$status]);
+                    }
+                }
+            })
             ->whereHas('user', function ($q) use ($departmentId) {
                 $q->where('department_id', $departmentId);
             });
@@ -29,8 +44,8 @@ class HandleReportsController extends Controller
         }
 
         // FILTER: Status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if ($selectedStatus !== '') {
+            $query->whereRaw('LOWER(status) = ?', [$selectedStatus]);
         }
 
         // FILTER: Reporter name
@@ -66,7 +81,7 @@ class HandleReportsController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
 
         if ($sortBy === 'status') {
-            $query->orderByRaw("FIELD(status, 'approved', 'under review', 'resolved')");
+            $query->orderByRaw("FIELD(LOWER(status), 'approved', 'rejected', 'under review', 'resolved')");
         } elseif ($sortBy === 'priority') {
             // Assuming you have a priority field
             $query->orderBy('priority', $sortOrder);
@@ -81,17 +96,20 @@ class HandleReportsController extends Controller
         $categories = Category::all();
 
         // Get available statuses for filter
-        $statuses = ['approved', 'under review', 'resolved'];
+        $statuses = $allowedStatuses;
 
         // Count reports by status for quick overview
         $statusCounts = [
-            'approved' => Report::where('status', 'approved')
+            'approved' => Report::whereRaw('LOWER(status) = ?', ['approved'])
                 ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
                 ->count(),
-            'under_review' => Report::where('status', 'under review')
+            'rejected' => Report::whereRaw('LOWER(status) = ?', ['rejected'])
                 ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
                 ->count(),
-            'resolved' => Report::where('status', 'resolved')
+            'under_review' => Report::whereRaw('LOWER(status) = ?', ['under review'])
+                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+                ->count(),
+            'resolved' => Report::whereRaw('LOWER(status) = ?', ['resolved'])
                 ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
                 ->count(),
         ];
@@ -100,7 +118,8 @@ class HandleReportsController extends Controller
             'approvedReports', 
             'categories', 
             'statuses',
-            'statusCounts'
+            'statusCounts',
+            'selectedStatus'
         ));
     }
 
@@ -114,7 +133,7 @@ class HandleReportsController extends Controller
         $report = Report::whereHas('user', function($query) use ($departmentId) {
                     $query->where('department_id', $departmentId);
                 })
-                ->with(['user', 'category', 'activities.performedBy'])
+                ->with(['user', 'category', 'activities.performedBy', 'responses.admin'])
                 ->findOrFail($id);
 
         // Get report history/activities
@@ -123,7 +142,12 @@ class HandleReportsController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.handlereports_show', compact('report', 'activities'));
+        $responses = ReportResponse::where('report_id', $id)
+            ->with('admin')
+            ->orderBy('response_number', 'desc')
+            ->get();
+
+        return view('admin.handlereports_show', compact('report', 'activities', 'responses'));
     }
 
 
@@ -150,45 +174,46 @@ class HandleReportsController extends Controller
         })->findOrFail($id);
 
         $oldStatus = $report->status;
-        $oldAssignedTo = $report->assigned_to;
 
-        $report->update([
-            'assigned_to' => $request->assigned_to,
-            'department'  => $request->department,
-            'target_date' => $request->target_date,
-            'remarks'     => $request->remarks,
-            'status'      => $request->status,
-            'handled_by'  => $admin->id,
-            'updated_at'  => now(),
-        ]);
+        DB::transaction(function () use ($request, $report, $admin, $oldStatus) {
+            $lockedReport = Report::whereKey($report->id)->lockForUpdate()->firstOrFail();
 
-        $newStatus = $request->status;
+            $nextResponseNumber = ReportResponse::where('report_id', $lockedReport->id)
+                ->max('response_number');
+            $nextResponseNumber = ($nextResponseNumber ?? 0) + 1;
 
-        // Log activity if status changed
-        if ($oldStatus !== $newStatus) {
+            ReportResponse::create([
+                'report_id' => $lockedReport->id,
+                'admin_id' => $admin->id,
+                'response_number' => $nextResponseNumber,
+                'assigned_to' => $request->assigned_to,
+                'department' => $request->department,
+                'target_date' => $request->target_date,
+                'status' => $request->status,
+                'remarks' => $request->remarks,
+            ]);
+
+            // Keep report row as the latest snapshot for listing/filtering.
+            $lockedReport->update([
+                'assigned_to' => $request->assigned_to,
+                'department'  => $request->department,
+                'target_date' => $request->target_date,
+                'remarks'     => $request->remarks,
+                'status'      => $request->status,
+                'handled_by'  => $admin->id,
+                'updated_at'  => now(),
+            ]);
+
             Activity::create([
-                'report_id'    => $report->id,
-                'user_id'      => $report->user_id,
-                'action'       => 'Status Updated',
+                'report_id'    => $lockedReport->id,
+                'user_id'      => $lockedReport->user_id,
+                'action'       => 'Response Added',
                 'performed_by' => $admin->id,
                 'old_status'   => $oldStatus,
-                'new_status'   => $newStatus,
-                'remarks'      => "Status changed from '{$oldStatus}' to '{$newStatus}' by {$admin->name}",
+                'new_status'   => $request->status,
+                'remarks'      => "Response #{$nextResponseNumber} recorded by {$admin->name}.",
             ]);
-        }
-
-        // Log activity if assigned person changed
-        if ($oldAssignedTo !== $request->assigned_to) {
-            Activity::create([
-                'report_id'    => $report->id,
-                'user_id'      => $report->user_id,
-                'action'       => 'Assignment Updated',
-                'performed_by' => $admin->id,
-                'old_status'   => $oldStatus,
-                'new_status'   => $newStatus,
-                'remarks'      => "Assigned to: " . ($request->assigned_to ?? 'Unassigned') . " by {$admin->name}",
-            ]);
-        }
+        });
 
         return redirect()
             ->route('admin.handlereports.show', $report->id)
@@ -262,7 +287,12 @@ class HandleReportsController extends Controller
         $departmentId = $admin->department_id;
 
         $query = Report::with(['user', 'category'])
-            ->whereIn('status', ['approved', 'under review', 'resolved'])
+            ->where(function ($q) {
+                $q->whereRaw('LOWER(status) = ?', ['approved'])
+                  ->orWhereRaw('LOWER(status) = ?', ['rejected'])
+                  ->orWhereRaw('LOWER(status) = ?', ['under review'])
+                  ->orWhereRaw('LOWER(status) = ?', ['resolved']);
+            })
             ->whereHas('user', fn($q) => $q->where('department_id', $departmentId));
 
         // Apply same filters as index
@@ -270,7 +300,7 @@ class HandleReportsController extends Controller
             $query->where('category_id', $request->category);
         }
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->whereRaw('LOWER(status) = ?', [strtolower((string) $request->status)]);
         }
 
         $reports = $query->get();

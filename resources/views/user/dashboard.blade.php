@@ -17,16 +17,20 @@
             <p id="pending-reports">{{ $pendingReports }}</p>
         </div>
         <div class="card animate">
-            <h3>Resolved</h3>
-            <p id="resolved-reports">{{ $resolvedReports }}</p>
+            <h3>Approved</h3>
+            <p id="approved-reports">{{ $approvedReports }}</p>
         </div>
         <div class="card animate">
             <h3>Rejected</h3>
             <p id="rejected-reports">{{ $rejectedReports }}</p>
         </div>
         <div class="card animate">
-            <h3>Approved</h3>
-            <p id="rejected-reports">{{ $approvedReports }}</p>
+            <h3>Under Review</h3>
+            <p id="under-review-reports">{{ $underReviewReports }}</p>
+        </div>
+        <div class="card animate">
+            <h3>Resolved</h3>
+            <p id="resolved-reports">{{ $resolvedReports }}</p>
         </div>
     </div>
 
@@ -51,7 +55,7 @@
             <tbody>
                 @foreach($recentReports as $report)
                     <tr>
-                        <td>#{{ $report->id }}</td>
+                        <td>{{ $report->id }}</td>
                         <td>{{ $report->title }}</td>
                         <td>{{ $report->submitted_at->format('F d, Y') }}</td>
                         <td>

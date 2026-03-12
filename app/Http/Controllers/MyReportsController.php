@@ -8,15 +8,28 @@ use Illuminate\Support\Facades\Auth;
 
 class MyReportsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $userId = Auth::id();
+        $search = $request->input('search');
+        $status = $request->input('status');
 
-        // Fetch only reports of the logged-in user
-        $myReports = Report::where('user_id', $userId)
-                           ->orderBy('submitted_at', 'desc')
-                           ->get();
+        $query = Report::with('category')
+                   ->where('user_id', $userId);
 
-        return view('user.myreports', compact('myReports'));
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status) {
+            $query->whereRaw('LOWER(status) = ?', [strtolower($status)]);
+        }
+
+        $myReports = $query->orderByRaw('COALESCE(submitted_at, created_at) DESC')->get();
+
+        return view('user.myreports', compact('myReports', 'search', 'status'));
     }
 }
