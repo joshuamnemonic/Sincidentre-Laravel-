@@ -35,9 +35,9 @@ Route::get('/user/dashboard', [DashboardController::class, 'index'])
 // --------------------
 // ADMIN DASHBOARD & MANAGEMENT
 // --------------------
-Route::middleware(['auth', 'is_admin'])->group(function () {
+Route::middleware(['auth', 'is_department_student_discipline_officer'])->group(function () {
     
-    // Admin Dashboard
+    // Department Student Discipline Officer Dashboard
     Route::get('/admin/admindashboard', [AdminDashboardController::class, 'index'])
         ->name('admin.admindashboard');
 
@@ -46,6 +46,8 @@ Route::middleware(['auth', 'is_admin'])->group(function () {
         ->name('admin.reports');
     Route::get('/admin/reports/{id}', [ReportManagementController::class, 'show'])
         ->name('admin.reports.show');
+    Route::patch('/admin/reports/{id}/escalate', [ReportManagementController::class, 'escalateToTopManagement'])
+        ->name('admin.reports.escalate');
     Route::patch('/admin/reports/{id}/approve', [ReportController::class, 'approve'])
         ->name('admin.reports.approve');
     Route::patch('/admin/reports/{id}/reject', [ReportController::class, 'reject'])
@@ -95,7 +97,7 @@ Route::prefix('admin')->group(function () {
 });
 
 // CATEGORY MANAGEMENT
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_department_student_discipline_officer'])->group(function () {
     Route::resource('categories', CategoryController::class);
 });
 
@@ -120,6 +122,9 @@ Route::post('/sinclogin', [AuthController::class, 'login'])->name('sinclogin.pos
 // Register
 Route::get('/sincregister', [AuthController::class, 'showRegister'])->name('sincregister');
 Route::post('/sincregister', [AuthController::class, 'register'])->name('sincregister.post');
+Route::get('/sincregister/verify-otp', [AuthController::class, 'showOtpForm'])->name('sincregister.otp.form');
+Route::post('/sincregister/verify-otp', [AuthController::class, 'verifyOtp'])->name('sincregister.otp.verify');
+Route::post('/sincregister/resend-otp', [AuthController::class, 'resendOtp'])->name('sincregister.otp.resend');
 
 // ADD THIS: Give your login route the 'login' name that Laravel expects
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -133,14 +138,8 @@ Route::get('/register', fn () => redirect()->route('sincregister'));
 // Logout
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Email Verification Routes
+// Email verification prompt (users are verified via OTP during registration)
 Route::get('/email/verify', fn() => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
-Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-    ->middleware(['auth', 'signed'])
-    ->name('verification.verify');
-Route::post('/email/resend', [AuthController::class, 'resendVerification'])
-    ->middleware(['auth', 'throttle:6,1'])
-    ->name('verification.resend');
 
 // --------------------
 // INCIDENT SYSTEM
@@ -150,32 +149,8 @@ Route::post('/newreport', [ReportController::class, 'store'])->name('reports.sto
 Route::get('/myreports', [MyReportsController::class, 'index'])->name('myreports');
 Route::get('/reports/{id}', [ReportController::class, 'show'])->name('report.show');
 
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Http\Request;
-
-Route::get('/email/verify/{id}/{hash}', function (Request $request) {
-    $user = User::findOrFail($request->route('id'));
-    
-    if (!hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
-        return redirect()->route('sinclogin')->withErrors(['email' => 'Invalid verification link.']);
-    }
-    
-    if ($user->hasVerifiedEmail()) {
-        return redirect()->route('sinclogin')->with('info', 'Email already verified. Please login.');
-    }
-    
-    $user->markEmailAsVerified();
-    
-    // AUTO-LOGIN the user and redirect to dashboard
-    Auth::login($user);
-    
-    // Use the named route instead of hardcoded path
-    return redirect()->route('dashboard')->with('success', 'Email verified successfully! Welcome!');
-    
-})->middleware(['signed'])->name('verification.verify');
-
-// DEPARTMENT MANAGEMENT (All admins can manage departments)
-Route::prefix('admin')->middleware(['auth', 'is_admin'])->name('admin.')->group(function () {
+// DEPARTMENT MANAGEMENT (All Department Student Discipline Officers can manage departments)
+Route::prefix('admin')->middleware(['auth', 'is_department_student_discipline_officer'])->name('admin.')->group(function () {
     Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
     Route::post('/departments', [DepartmentController::class, 'store'])->name('departments.store');
     Route::put('/departments/{id}', [DepartmentController::class, 'update'])->name('departments.update');
@@ -184,11 +159,11 @@ Route::prefix('admin')->middleware(['auth', 'is_admin'])->name('admin.')->group(
 
 // Activity Logs
 Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])
-    ->middleware(['auth', 'is_admin'])
+    ->middleware(['auth', 'is_department_student_discipline_officer'])
     ->name('admin.activitylogs');
 
 // Analytics Routes
-Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'is_department_student_discipline_officer'])->prefix('admin')->name('admin.')->group(function () {
     
     // Analytics Dashboard
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
@@ -198,8 +173,10 @@ Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(
     
 });
 
-// Admin Profile Routes
-Route::middleware(['auth', 'is_admin'])->prefix('admin')->name('admin.')->group(function () {
+// Department Student Discipline Officer Profile Routes
+Route::middleware(['auth', 'is_department_student_discipline_officer'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/profile', [AdminProfileController::class, 'show'])->name('profile');
     Route::patch('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
 });
+
+

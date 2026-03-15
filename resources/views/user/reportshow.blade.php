@@ -3,7 +3,7 @@
 @section('title', 'Report Details - Sincidentre')
 
 @section('content')
-    <header class="page-header">
+    <header>
         <h1>Report Details</h1>
         <p>Report ID: #{{ $report->id }}</p>
     </header>
@@ -18,7 +18,15 @@
             </div>
             <div class="detail-item">
                 <label>Category</label>
-                <p>{{ $report->category->name ?? 'N/A' }}</p> <!-- ✅ FIXED -->
+                @if($report->category)
+                    <p>{{ $report->category->name }}</p>
+                    <small>
+                        {{ $report->category->main_category_code }} - {{ $report->category->main_category_name }}
+                        ({{ $report->category->classification }})
+                    </small>
+                @else
+                    <p>N/A</p>
+                @endif
             </div>
             <div class="detail-item">
                 <label>Date of Incident</label>
@@ -87,9 +95,9 @@
         @endif
     </section>
 
-    <!-- Unified Admin Response Timeline -->
+    <!-- Unified Department Student Discipline Officer Response Timeline -->
     <section id="admin-response-timeline" class="animate">
-        <h2>📋 Admin Response Timeline</h2>
+        <h2>📋 Department Student Discipline Officer Response Timeline</h2>
 
         @php
             $responses = $report->responses->sortByDesc('response_number');
@@ -126,7 +134,7 @@
                             </div>
 
                             <div class="timeline-footer">
-                                By: <strong>{{ $response->admin->name ?? 'Unknown Admin' }}</strong>
+                                By: <strong>{{ $response->admin->name ?? 'Unknown Department Student Discipline Officer' }}</strong>
                             </div>
                         </div>
                     </div>
@@ -188,14 +196,14 @@
                             @endif
 
                             <div class="timeline-footer">
-                                By: <strong>{{ $activity->admin->name ?? 'Unknown Admin' }}</strong>
+                                By: <strong>{{ $activity->admin->name ?? 'Unknown Department Student Discipline Officer' }}</strong>
                             </div>
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
-            <p class="no-data">Your report is still pending review or has no admin response yet.</p>
+            <p class="no-data">Your report is still pending review or has no department student discipline officer response yet.</p>
         @endif
 
         @if($report->status === 'Rejected' && $report->rejection_reason)

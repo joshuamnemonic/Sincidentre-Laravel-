@@ -19,6 +19,22 @@ class Report extends Model
         'incident_date',
         'incident_time',
         'location',
+        'person_full_name',
+        'person_college_department',
+        'person_role',
+        'person_contact_number',
+        'person_email_address',
+        'person_has_multiple',
+        'additional_persons',
+        'has_witnesses',
+        'witness_attachment',
+        'witness_details',
+        'incident_additional_sheets',
+        'informant_full_name',
+        'informant_college_department',
+        'informant_role',
+        'informant_contact_number',
+        'informant_email_address',
         'category_id', // Add this if you have category_id column
         'status',
         'assigned_to',
@@ -29,6 +45,9 @@ class Report extends Model
         'submitted_at',
         'rejection_reason',
         'handled_by',
+        'escalated_to_top_management',
+        'escalated_at',
+        'escalated_by',
     ];
 
     /**
@@ -38,6 +57,12 @@ class Report extends Model
         'submitted_at' => 'datetime',
         'incident_date' => 'date',
         'incident_time' => 'datetime:H:i',
+        'person_has_multiple' => 'boolean',
+        'additional_persons' => 'array',
+        'has_witnesses' => 'boolean',
+        'witness_details' => 'array',
+        'escalated_to_top_management' => 'boolean',
+        'escalated_at' => 'datetime',
     ];
 
     /**

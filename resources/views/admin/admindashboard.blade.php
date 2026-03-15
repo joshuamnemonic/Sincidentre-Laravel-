@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Sincidentre Admin Dashboard')
+@section('title', 'Sincidentre Management Dashboard')
 
 @section('page-title')
     <div>

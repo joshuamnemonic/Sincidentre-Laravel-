@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Admin Profile - Sincidentre')
+@section('title', 'Department Student Discipline Officer Profile - Sincidentre')
 
 @section('page-title', 'My Profile')
 
@@ -50,10 +50,10 @@
                 📧 {{ Auth::user()->email }}
             </p>
             <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0.25rem 0;">
-                🏢 {{ Auth::user()->department->name ?? 'Admin' }}
+                🏢 {{ Auth::user()->department->name ?? 'Department Student Discipline Officer' }}
             </p>
             <span class="role-badge admin" style="margin-top: 0.75rem; display: inline-block;">
-                Admin
+                Department Student Discipline Officer
             </span>
         </section>
 
@@ -218,3 +218,4 @@
     }
 </style>
 @endpush
+

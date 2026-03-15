@@ -16,10 +16,18 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'department_id',
-        'is_admin',
+        'registrant_type',
+        'employee_office',
+        'employee_id_number',
+        'is_department_student_discipline_officer',
+        'is_top_management',
         'status',
         'phone', // ✅ Add if you don't have it
         'email_verified_at',
+        'email_verification_otp',
+        'email_verification_otp_expires_at',
+        'otp_attempts',
+        'otp_locked_until',
         'suspension_reason',
         'suspended_at',
         'suspended_by',
@@ -32,8 +40,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'email_verification_otp_expires_at' => 'datetime',
+        'otp_locked_until' => 'datetime',
         'suspended_at' => 'datetime',
-        'is_admin' => 'integer',
+        'is_department_student_discipline_officer' => 'integer',
+        'is_top_management' => 'integer',
     ];
 
     // Relationship to Department
@@ -84,3 +95,4 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->status === 'deactivated';
     }
 }
+

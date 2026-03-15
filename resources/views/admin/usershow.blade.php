@@ -1,13 +1,13 @@
 @extends('layouts.admin')
 
-@section('title', 'User Details - Sincidentre Admin')
+@section('title', 'User Details - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', '👤 User Details')
 
 @section('header-search')
     <div style="display: flex; gap: 10px;">
         <a href="{{ route('admin.users') }}" class="btn-back">← Back to Users</a>
-        @if(!$user->is_admin)
+        @if(!$user->is_department_student_discipline_officer)
             <a href="{{ route('admin.users.edit', $user->id) }}" class="btn-edit">✏️ Edit User</a>
         @endif
     </div>
@@ -52,8 +52,8 @@
             <tr>
                 <th>Role</th>
                 <td>
-                    <span class="role-badge {{ $user->is_admin ? 'admin' : 'user' }}">
-                        {{ $user->is_admin ? 'Admin' : 'User' }}
+                    <span class="role-badge {{ $user->is_department_student_discipline_officer ? 'admin' : 'user' }}">
+                        {{ $user->is_department_student_discipline_officer ? 'Department Student Discipline Officer' : 'User' }}
                     </span>
                 </td>
             </tr>
@@ -103,7 +103,7 @@
             </div>
         @endif
 
-        @if(!$user->is_admin)
+        @if(!$user->is_department_student_discipline_officer)
             <h3 style="margin-top: 30px;">User Actions</h3>
             <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <a href="{{ route('admin.users.edit', $user->id) }}" class="btn-edit">
@@ -138,7 +138,7 @@
             </div>
         @else
             <div class="alert alert-info" style="margin-top: 20px;">
-                <strong>Note:</strong> This is an admin account and cannot be suspended or deactivated from this interface.
+                <strong>Note:</strong> This is a Department Student Discipline Officer account and cannot be suspended or deactivated from this interface.
             </div>
         @endif
     </section>
@@ -283,3 +283,5 @@
     }
 </script>
 @endpush
+
+

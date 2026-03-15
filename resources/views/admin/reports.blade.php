@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'New Reports - Sincidentre Admin')
+@section('title', 'New Reports - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'New Reports')
 
@@ -39,16 +39,38 @@
                             <td>{{ $report->id }}</td>
                             <td>{{ $report->title }}</td>
                             <td>{{ $report->user->first_name ?? 'Unknown' }} {{ $report->user->last_name ?? '' }}</td>
-                            <td>{{ $report->category->name ?? 'N/A' }}</td>
+                            <td>
+                                @if($report->category)
+                                    <div>{{ $report->category->name }}</div>
+                                    <small style="color:#666;">
+                                        {{ $report->category->main_category_code }} - {{ $report->category->classification }}
+                                    </small>
+                                @else
+                                    N/A
+                                @endif
+                            </td>
                             <td>{{ $report->incident_date ? \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') : 'N/A' }}</td>
                             <td>
                                 <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">
                                     {{ $report->status }}
                                 </span>
+                                @if($report->escalated_to_top_management)
+                                    <div>
+                                        <small style="color:#c0392b; font-weight:600;">Escalated to Top Management</small>
+                                    </div>
+                                @endif
                             </td>
                             <td>
                                 <div class="action-buttons">
                                     <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View</a>
+
+                                    @if(!Auth::user()->is_top_management && in_array($report->category->classification ?? '', ['Major', 'Grave']) && !$report->escalated_to_top_management)
+                                        <form method="POST" action="{{ route('admin.reports.escalate', $report->id) }}" style="display:inline;">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="btn-secondary" onclick="return confirm('Escalate this report to Top Management?')">Escalate</button>
+                                        </form>
+                                    @endif
                                     
                                     <form method="POST" action="{{ route('admin.reports.approve', $report->id) }}" style="display:inline;">
                                         @csrf

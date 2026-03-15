@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Report Details - Sincidentre Admin')
+@section('title', 'Report Details - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'Report Details')
 
@@ -40,6 +40,11 @@
                 <td>
                     @if($report->category)
                         <span class="category-badge">{{ $report->category->name }}</span>
+                        <div style="margin-top: 8px; color: #555;">
+                            {{ $report->category->main_category_code }} - {{ $report->category->main_category_name }}
+                            <br>
+                            Classification: <strong>{{ $report->category->classification }}</strong>
+                        </div>
                     @else
                         <span class="category-badge">N/A</span>
                     @endif

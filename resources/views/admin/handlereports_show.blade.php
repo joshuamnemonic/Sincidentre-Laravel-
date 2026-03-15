@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Handle Report #' . $report->id . ' - Sincidentre Admin')
+@section('title', 'Handle Report #' . $report->id . ' - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', '📝 Handle Report #' . $report->id)
 
@@ -124,7 +124,7 @@
                     <small>{{ $response->created_at->format('M d, Y h:i A') }}</small>
                 </div>
 
-                <p style="margin: 8px 0 0;"><strong>Handled by:</strong> {{ $response->admin->name ?? 'Unknown Admin' }}</p>
+                <p style="margin: 8px 0 0;"><strong>Handled by:</strong> {{ $response->admin->name ?? 'Unknown Department Student Discipline Officer' }}</p>
                 <p style="margin: 6px 0 0;"><strong>Status:</strong> {{ ucfirst($response->status) }}</p>
                 <p style="margin: 6px 0 0;"><strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}</p>
                 <p style="margin: 6px 0 0;"><strong>Department:</strong> {{ $response->department ?? 'N/A' }}</p>

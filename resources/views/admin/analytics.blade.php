@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Analytics & Insights - Sincidentre Admin')
+@section('title', 'Analytics & Insights - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'Analytics & Insights')
 
@@ -211,7 +211,7 @@
             </div>
 
             <div class="metric-card">
-                <h4>Most Active Admin</h4>
+                <h4>Most Active Department Student Discipline Officer</h4>
                 <p style="color: #17a2b8; font-size: 18px;">{{ $mostActiveAdmin }}</p>
                 <small>{{ $mostActiveAdminCount }} actions</small>
             </div>

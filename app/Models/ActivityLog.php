@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ActivityLog extends Model
 {
     protected $fillable = [
+        'dsdo_id',
         'report_id',
         'user_id',
         'action',
@@ -16,10 +17,10 @@ class ActivityLog extends Model
         'remarks',
     ];
 
-    // Admin who performed the action
+    // Department Student Discipline Officer who performed the action
     public function admin()
     {
-        return $this->belongsTo(User::class, 'performed_by');
+        return $this->belongsTo(User::class, 'dsdo_id');
     }
 
     // User who owns the report

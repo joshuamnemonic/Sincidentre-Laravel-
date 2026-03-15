@@ -9,15 +9,17 @@ class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name']; // allow mass assignment
+    protected $fillable = [
+        'name',
+        'main_category_code',
+        'main_category_name',
+        'classification',
+    ];
 
-    
-    
-public function index()
-{
-    $categories = Category::all();
-    return view('user.dashboard', compact('categories'));
-}
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
 public function reports()
 {

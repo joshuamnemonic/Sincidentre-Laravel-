@@ -11,19 +11,30 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportManagementController extends Controller
 {
+    private function applyRoleVisibility($query, $manager)
+    {
+        if ($manager->is_top_management) {
+            return $query->whereHas('category', function ($q) {
+                $q->whereIn('classification', ['Major', 'Grave']);
+            });
+        }
+
+        return $query->whereHas('user', function ($q) use ($manager) {
+            $q->where('department_id', $manager->department_id);
+        });
+    }
+
     /**
      * Display a listing of pending reports for the admin's department.
      */
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $reports = Report::with(['user', 'category'])
-            ->whereRaw('LOWER(status) = ?', ['pending'])
-            ->whereHas('user', function($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            })
+        $reports = $this->applyRoleVisibility(
+            Report::with(['user', 'category'])->whereRaw('LOWER(status) = ?', ['pending']),
+            $admin
+        )
             ->orderBy('incident_date', 'desc')
             ->get();
 
@@ -36,13 +47,8 @@ class ReportManagementController extends Controller
     public function show($id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $report = Report::with(['user', 'category'])
-            ->whereHas('user', function($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            })
-            ->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin)->findOrFail($id);
 
         // Get report activities
         $activities = Activity::where('report_id', $id)
@@ -58,11 +64,8 @@ class ReportManagementController extends Controller
     public function approve($id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $report = Report::whereHas('user', function($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            })->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
 
         $oldStatus = $report->status;
         $report->status = 'Approved';
@@ -90,7 +93,6 @@ class ReportManagementController extends Controller
     public function reject(Request $request, $id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
         // Validate rejection reason
         $request->validate([
@@ -101,9 +103,7 @@ class ReportManagementController extends Controller
         ]);
 
         // Only reject reports from the same department
-        $report = Report::whereHas('user', function($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            })->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
 
         $oldStatus = $report->status;
         $report->status = 'Rejected';
@@ -132,16 +132,11 @@ class ReportManagementController extends Controller
     public function handleReports()
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        // Fetch all approved reports from the same department
-        $approvedReports = Report::where('status', 'Approved')
-            ->whereHas('user', function($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            })
-            ->with(['user', 'category'])
-            ->latest()
-            ->get();
+        $approvedReports = $this->applyRoleVisibility(
+            Report::where('status', 'Approved')->with(['user', 'category']),
+            $admin
+        )->latest()->get();
 
         // Get all categories for filter dropdown
         $categories = Category::all();
@@ -155,13 +150,8 @@ class ReportManagementController extends Controller
     public function showHandleReport($id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $report = Report::whereHas('user', function($q) use ($departmentId) {
-                    $q->where('department_id', $departmentId);
-                })
-                ->with(['user', 'category'])
-                ->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin)->findOrFail($id);
 
         $activities = Activity::where('report_id', $report->id)
             ->orderBy('created_at', 'desc')
@@ -176,7 +166,6 @@ class ReportManagementController extends Controller
     public function updateHandled(Request $request, $id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
         // Validate input
         $request->validate([
@@ -192,9 +181,7 @@ class ReportManagementController extends Controller
         ]);
 
         // Find report (only from admin's department)
-        $report = Report::whereHas('user', function($q) use ($departmentId) {
-                    $q->where('department_id', $departmentId);
-                })->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
 
         $oldStatus = $report->status;
         $oldAssignedTo = $report->assigned_to;
@@ -257,10 +244,8 @@ class ReportManagementController extends Controller
     public function export(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $query = Report::with(['user', 'category'])
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId));
+        $query = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin);
 
         // Apply same filters as index
         if ($request->filled('category')) {
@@ -301,5 +286,38 @@ class ReportManagementController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function escalateToTopManagement($id)
+    {
+        $admin = Auth::user();
+
+        if ($admin->is_top_management) {
+            return redirect()->route('admin.reports')->with('error', 'Top Management cannot escalate reports to itself.');
+        }
+
+        $report = $this->applyRoleVisibility(Report::with('category'), $admin)->findOrFail($id);
+
+        if (!$report->category || !in_array($report->category->classification, ['Major', 'Grave'], true)) {
+            return redirect()->route('admin.reports')->with('error', 'Only Major or Grave reports can be escalated to Top Management.');
+        }
+
+        $report->update([
+            'escalated_to_top_management' => true,
+            'escalated_at' => now(),
+            'escalated_by' => $admin->id,
+        ]);
+
+        Activity::create([
+            'report_id' => $report->id,
+            'user_id' => $report->user_id,
+            'action' => 'Escalated to Top Management',
+            'performed_by' => $admin->id,
+            'old_status' => $report->status,
+            'new_status' => $report->status,
+            'remarks' => 'Escalated by ' . $admin->first_name . ' ' . $admin->last_name,
+        ]);
+
+        return redirect()->route('admin.reports.show', $report->id)->with('success', 'Report escalated to Top Management.');
     }
 }

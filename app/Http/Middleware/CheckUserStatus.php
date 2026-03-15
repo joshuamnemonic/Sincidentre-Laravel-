@@ -25,7 +25,7 @@ class CheckUserStatus
                 
                 return redirect()
                     ->route('sinclogin')
-                    ->withErrors(['email' => $message . ' Please contact an administrator.']);
+                    ->withErrors(['email' => $message . ' Please contact the Department Student Discipline Officer.']);
             }
         }
 

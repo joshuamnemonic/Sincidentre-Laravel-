@@ -18,7 +18,8 @@ class UserManagementController extends Controller
     {
         $query = User::with(['department'])
             ->withCount('reports')
-            ->where('is_admin', 0); // Only show regular users
+            ->where('is_department_student_discipline_officer', 0)
+            ->where('is_top_management', 0); // Only show regular users
 
         // Search filter
         if ($request->filled('search')) {
@@ -43,10 +44,10 @@ class UserManagementController extends Controller
         $users = $query->orderBy('created_at', 'desc')->paginate(15);
 
         // Statistics
-        $totalUsers = User::where('is_admin', 0)->count();
-        $activeUsers = User::where('is_admin', 0)->where('status', 'active')->count();
-        $suspendedUsers = User::where('is_admin', 0)->where('status', 'suspended')->count();
-        $deactivatedUsers = User::where('is_admin', 0)->where('status', 'deactivated')->count();
+        $totalUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->count();
+        $activeUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'active')->count();
+        $suspendedUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'suspended')->count();
+        $deactivatedUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'deactivated')->count();
 
         // Get all departments for filter
         $departments = Department::orderBy('name')->get();
@@ -79,11 +80,11 @@ class UserManagementController extends Controller
     {
         $user = User::findOrFail($id);
         
-        // Prevent editing admin accounts
-        if ($user->is_admin) {
+        // Prevent editing department student discipline officer accounts
+        if ($user->is_department_student_discipline_officer || $user->is_top_management) {
             return redirect()
                 ->route('admin.users')
-                ->with('error', 'Cannot edit admin accounts.');
+            ->with('error', 'Cannot edit privileged management accounts.');
         }
 
         $departments = Department::orderBy('name')->get();
@@ -98,11 +99,11 @@ class UserManagementController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Prevent editing admin accounts
-        if ($user->is_admin) {
+        // Prevent editing department student discipline officer accounts
+        if ($user->is_department_student_discipline_officer || $user->is_top_management) {
             return redirect()
                 ->route('admin.users')
-                ->with('error', 'Cannot edit admin accounts.');
+            ->with('error', 'Cannot edit privileged management accounts.');
         }
 
         $validated = $request->validate([
@@ -120,7 +121,7 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'action' => 'User Information Updated',
             'performed_by' => Auth::id(),
-            'remarks' => 'Admin updated user information',
+            'remarks' => 'Department Student Discipline Officer updated user information',
         ]);
 
         return redirect()
@@ -135,11 +136,11 @@ class UserManagementController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Prevent suspending admin accounts
-        if ($user->is_admin) {
+        // Prevent suspending department student discipline officer accounts
+        if ($user->is_department_student_discipline_officer || $user->is_top_management) {
             return redirect()
                 ->back()
-                ->with('error', 'Cannot suspend admin accounts.');
+            ->with('error', 'Cannot suspend privileged management accounts.');
         }
 
         // Prevent suspending yourself
@@ -211,11 +212,11 @@ class UserManagementController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Prevent deactivating admin accounts
-        if ($user->is_admin) {
+        // Prevent deactivating department student discipline officer accounts
+        if ($user->is_department_student_discipline_officer || $user->is_top_management) {
             return redirect()
                 ->back()
-                ->with('error', 'Cannot deactivate admin accounts.');
+            ->with('error', 'Cannot deactivate privileged management accounts.');
         }
 
         // Prevent deactivating yourself
@@ -227,7 +228,7 @@ class UserManagementController extends Controller
 
         $user->update([
             'status' => 'deactivated',
-            'suspension_reason' => $request->reason ?? 'Account deactivated by admin',
+            'suspension_reason' => $request->reason ?? 'Account deactivated by Department Student Discipline Officer',
             'suspended_at' => now(),
             'suspended_by' => Auth::id(),
         ]);
@@ -237,7 +238,7 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'action' => 'User Deactivated',
             'performed_by' => Auth::id(),
-            'remarks' => $request->reason ?? 'Account deactivated by admin',
+            'remarks' => $request->reason ?? 'Account deactivated by Department Student Discipline Officer',
         ]);
 
         return redirect()
@@ -254,3 +255,5 @@ class UserManagementController extends Controller
         return $this->deactivate(request(), $id);
     }
 }
+
+

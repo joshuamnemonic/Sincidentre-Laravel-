@@ -4,13 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Sincidentre Admin')</title>
+    <title>@yield('title', 'Sincidentre Department Student Discipline Officer')</title>
 
     <!-- Styles -->
     <link rel="stylesheet" href="{{ asset('css/newcss.css') }}">
     @stack('styles')
 </head>
 <body>
+
+    @php
+        $isTopManagement = (bool) (Auth::user()->is_top_management ?? false);
+        $managementTitle = $isTopManagement ? 'Top Management' : 'Department Student Discipline Officer';
+    @endphp
 
     <!-- Mobile Menu Toggle Button -->
     <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
@@ -29,12 +34,12 @@
                 <img src="{{ asset('images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="sidebar-logo">
                 <div class="logo-text">
                     <h2>SINCIDENTRE</h2>
-                    <span class="logo-tagline">Admin Panel</span>
+                    <span class="logo-tagline">{{ $managementTitle }} Panel</span>
                 </div>
             </div>
         </div>
 
-        <!-- Admin Profile Card -->
+        <!-- Management Profile Card -->
         <div class="user-profile-card">
             <div class="user-avatar">
                 @if(Auth::user()->profile_picture)
@@ -45,7 +50,7 @@
             </div>
             <div class="user-info">
                 <h3>{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h3>
-                <p>{{ Auth::user()->department->name ?? 'Admin' }}</p>
+                <p>{{ Auth::user()->department->name ?? $managementTitle }}</p>
             </div>
         </div>
 
@@ -123,7 +128,7 @@
     <main class="dashboard">
         <!-- Topbar -->
         <header>
-            <h1>@yield('page-title', 'Admin Dashboard')</h1>
+            <h1>@yield('page-title', $managementTitle . ' Dashboard')</h1>
             @yield('header-search')
         </header>
 

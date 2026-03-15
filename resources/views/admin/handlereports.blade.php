@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Handle Reports - Sincidentre Admin')
+@section('title', 'Handle Reports - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'Handle Reports')
 

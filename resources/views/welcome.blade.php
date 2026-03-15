@@ -156,16 +156,56 @@
       </div>
 
       <div class="input-group">
+        <label for="registrant-type">
+          <span class="label-icon">🎓</span>
+          I am registering as
+        </label>
+        <select id="registrant-type" name="registrant_type" required>
+          <option value="" disabled selected>Select one</option>
+          <option value="student">Student</option>
+          <option value="faculty">Faculty</option>
+          <option value="employee_staff">Employee / Staff</option>
+        </select>
+      </div>
+
+      <div id="student-faculty-fields">
+      <div class="input-group">
         <label for="department">
           <span class="label-icon">🏫</span>
           Department / College
         </label>
-        <select id="department" name="department_id" required>
+        <select id="department" name="department_id">
           <option value="" disabled selected>Select your college</option>
           @foreach(\App\Models\Department::all() as $department)
             <option value="{{ $department->id }}">{{ $department->name }}</option>
           @endforeach
         </select>
+      </div>
+      </div>
+
+      <div id="employee-fields" style="display:none;">
+        <div class="input-group">
+          <label for="employee-office">
+            <span class="label-icon">🏢</span>
+            Office / Unit
+          </label>
+          <input type="text"
+                 id="employee-office"
+                 name="employee_office"
+                 placeholder="e.g., HR Office"
+                 autocomplete="organization">
+        </div>
+
+        <div class="input-group">
+          <label for="employee-id-number">
+            <span class="label-icon">🆔</span>
+            Employee ID Number
+          </label>
+          <input type="text"
+                 id="employee-id-number"
+                 name="employee_id_number"
+                 placeholder="e.g., EMP-2026-001">
+        </div>
       </div>
 
       <div class="input-group">
@@ -265,6 +305,53 @@ document.addEventListener('DOMContentLoaded', function() {
       formBox.style.opacity = "1";
       formBox.style.transform = "translateY(0)";
     }, 100);
+  }
+
+  const registrantType = document.getElementById('registrant-type');
+  const studentFacultyFields = document.getElementById('student-faculty-fields');
+  const employeeFields = document.getElementById('employee-fields');
+  const department = document.getElementById('department');
+  const employeeOffice = document.getElementById('employee-office');
+  const employeeIdNumber = document.getElementById('employee-id-number');
+
+  function toggleRegistrantFields() {
+    if (!registrantType) return;
+
+    const isEmployee = registrantType.value === 'employee_staff';
+
+    if (studentFacultyFields) {
+      studentFacultyFields.style.display = isEmployee ? 'none' : 'block';
+    }
+
+    if (employeeFields) {
+      employeeFields.style.display = isEmployee ? 'block' : 'none';
+    }
+
+    if (department) {
+      department.required = !isEmployee;
+      if (isEmployee) {
+        department.value = '';
+      }
+    }
+
+    if (employeeOffice) {
+      employeeOffice.required = isEmployee;
+      if (!isEmployee) {
+        employeeOffice.value = '';
+      }
+    }
+
+    if (employeeIdNumber) {
+      employeeIdNumber.required = isEmployee;
+      if (!isEmployee) {
+        employeeIdNumber.value = '';
+      }
+    }
+  }
+
+  if (registrantType) {
+    registrantType.addEventListener('change', toggleRegistrantFields);
+    toggleRegistrantFields();
   }
 });
 </script>

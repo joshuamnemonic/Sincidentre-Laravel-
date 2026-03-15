@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit User - Sincidentre Admin')
+@section('title', 'Edit User - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', '✏️ Edit User')
 

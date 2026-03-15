@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Audit Trail - Sincidentre Admin')
+@section('title', 'Audit Trail - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'Audit Trail')
 
@@ -111,7 +111,7 @@
                       <span style="color: #007bff; font-size: 0.85em;">(You)</span>
                     @endif
                   @else
-                    Unknown Admin
+                    Unknown Department Student Discipline Officer
                   @endif
                 </strong>
               </td>

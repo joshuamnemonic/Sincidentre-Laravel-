@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Categories Management - Sincidentre Admin')
+@section('title', 'Categories Management - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'Categories Management')
 
@@ -25,8 +25,34 @@
             <form id="addCategoryForm" action="{{ route('admin.categories.store') }}" method="POST">
                 @csrf
                 <div class="form-group">
+                    <label for="mainCategoryCode">Main Category Code *</label>
+                    <select id="mainCategoryCode" name="mainCategoryCode" required>
+                        <option value="">-- Select Main Category --</option>
+                        <option value="A">A - Offenses Against Persons and Public Order</option>
+                        <option value="B">B - Offenses Against Property and Security</option>
+                        <option value="C">C - Academic and Technological Misconduct</option>
+                        <option value="D">D - Behavioral and Substance Violations</option>
+                        <option value="E">E - Administrative and General Violations</option>
+                        <option value="F">F - Offenses Against Public Morals</option>
+                        <option value="G">G - Technical and Facility Issues</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="mainCategoryName">Main Category Name *</label>
+                    <input type="text" id="mainCategoryName" name="mainCategoryName" readonly required>
+                </div>
+                <div class="form-group">
                     <label for="categoryName">Category Name *</label>
                     <input type="text" id="categoryName" name="categoryName" placeholder="e.g., Cheating/Plagiarism" required>
+                </div>
+                <div class="form-group">
+                    <label for="classification">Classification *</label>
+                    <select id="classification" name="classification" required>
+                        <option value="">-- Select Classification --</option>
+                        <option value="Minor">Minor</option>
+                        <option value="Major">Major</option>
+                        <option value="Grave">Grave</option>
+                    </select>
                 </div>
                 <div class="modal-actions">
                     <button type="button" onclick="closeModal('addCategoryModal')" class="btn-cancel">Cancel</button>
@@ -43,7 +69,8 @@
                 <h3>Confirm New Category</h3>
                 <span class="close" onclick="closeModal('confirmCategoryModal')">&times;</span>
             </div>
-            <p style="padding: 1rem 1.875rem;">Are you sure you want to add <strong id="confirmCategoryName"></strong> as a new category?</p>
+            <p style="padding: 1rem 1.875rem;">Are you sure you want to add this category?</p>
+            <p style="padding: 0 1.875rem 1rem; color: #555;"><strong id="confirmCategorySummary"></strong></p>
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('confirmCategoryModal')">Cancel</button>
                 <button type="button" class="btn-submit" onclick="document.getElementById('addCategoryForm').submit()">Yes, Add Category</button>
@@ -58,13 +85,17 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Main</th>
                         <th>Category Name</th>
+                        <th>Classification</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($categories as $category)
                         <tr>
+                            <td>{{ $category->main_category_code }} - {{ $category->main_category_name }}</td>
                             <td>{{ $category->name }}</td>
+                            <td>{{ $category->classification }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -88,15 +119,41 @@
     }
 
     function confirmAddCategory() {
+        const mainCode = document.getElementById('mainCategoryCode').value.trim();
+        const mainName = document.getElementById('mainCategoryName').value.trim();
         const name = document.getElementById('categoryName').value.trim();
+        const classification = document.getElementById('classification').value.trim();
+        if (!mainCode) {
+            document.getElementById('mainCategoryCode').reportValidity();
+            return;
+        }
         if (!name) {
             document.getElementById('categoryName').reportValidity();
             return;
         }
-        document.getElementById('confirmCategoryName').textContent = '"' + name + '"';
+        if (!classification) {
+            document.getElementById('classification').reportValidity();
+            return;
+        }
+        document.getElementById('confirmCategorySummary').textContent = mainCode + ' - ' + mainName + ' / ' + name + ' (' + classification + ')';
         closeModal('addCategoryModal');
         openModal('confirmCategoryModal');
     }
+
+    const mainCategoryMap = {
+        A: 'Offenses Against Persons and Public Order',
+        B: 'Offenses Against Property and Security',
+        C: 'Academic and Technological Misconduct',
+        D: 'Behavioral and Substance Violations',
+        E: 'Administrative and General Violations',
+        F: 'Offenses Against Public Morals',
+        G: 'Technical and Facility Issues'
+    };
+
+    document.getElementById('mainCategoryCode').addEventListener('change', function () {
+        const value = this.value;
+        document.getElementById('mainCategoryName').value = mainCategoryMap[value] || '';
+    });
 
     window.addEventListener('click', function(e) {
         if (e.target.classList.contains('modal')) {
@@ -119,3 +176,4 @@
     });
 </script>
 @endpush
+

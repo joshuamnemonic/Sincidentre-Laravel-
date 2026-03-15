@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'User Management - Sincidentre Admin')
+@section('title', 'User Management - Sincidentre Department Student Discipline Officer')
 
 @section('page-title', 'User Management')
 
@@ -98,7 +98,7 @@
                                 <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                     <a href="{{ route('admin.users.show', $user->id) }}" class="btn-view">View</a>
                                     
-                                    @if(!$user->is_admin)
+                                    @if(!$user->is_department_student_discipline_officer)
                                         <a href="{{ route('admin.users.edit', $user->id) }}" class="btn-edit">Edit</a>
                                         
                                         @if($user->status === 'active')
@@ -127,7 +127,7 @@
                                             </button>
                                         @endif
                                     @else
-                                        <span style="color: #999; font-size: 0.9em;">Admin Account</span>
+                                        <span style="color: #999; font-size: 0.9em;">Department Student Discipline Officer Account</span>
                                     @endif
                                 </div>
                             </td>
@@ -222,3 +222,5 @@
     }
 </script>
 @endpush
+
+

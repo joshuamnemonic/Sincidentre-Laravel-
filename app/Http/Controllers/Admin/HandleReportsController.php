@@ -13,6 +13,19 @@ use Illuminate\Support\Facades\DB;
 
 class HandleReportsController extends Controller
 {
+    private function applyRoleVisibility($query, $manager)
+    {
+        if ($manager->is_top_management) {
+            return $query->whereHas('category', function ($q) {
+                $q->whereIn('classification', ['Major', 'Grave']);
+            });
+        }
+
+        return $query->whereHas('user', function ($q) use ($manager) {
+            $q->where('department_id', $manager->department_id);
+        });
+    }
+
     // Show reports from admin's department with filters
     public function index(Request $request)
     {
@@ -24,7 +37,7 @@ class HandleReportsController extends Controller
             $selectedStatus = '';
         }
 
-        $query = Report::with(['user', 'category'])
+        $query = $this->applyRoleVisibility(Report::with(['user', 'category'])
             ->where(function ($q) use ($allowedStatuses) {
                 foreach ($allowedStatuses as $index => $status) {
                     if ($index === 0) {
@@ -33,10 +46,9 @@ class HandleReportsController extends Controller
                         $q->orWhereRaw('LOWER(status) = ?', [$status]);
                     }
                 }
-            })
-            ->whereHas('user', function ($q) use ($departmentId) {
-                $q->where('department_id', $departmentId);
-            });
+            }),
+            $admin
+        );
 
         // FILTER: Category
         if ($request->filled('category')) {
@@ -100,18 +112,10 @@ class HandleReportsController extends Controller
 
         // Count reports by status for quick overview
         $statusCounts = [
-            'approved' => Report::whereRaw('LOWER(status) = ?', ['approved'])
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'rejected' => Report::whereRaw('LOWER(status) = ?', ['rejected'])
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'under_review' => Report::whereRaw('LOWER(status) = ?', ['under review'])
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
-            'resolved' => Report::whereRaw('LOWER(status) = ?', ['resolved'])
-                ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-                ->count(),
+            'approved' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['approved']), $admin)->count(),
+            'rejected' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['rejected']), $admin)->count(),
+            'under_review' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['under review']), $admin)->count(),
+            'resolved' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['resolved']), $admin)->count(),
         ];
 
         return view('admin.handlereports', compact(
@@ -128,13 +132,11 @@ class HandleReportsController extends Controller
     public function show($id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $report = Report::whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })
-                ->with(['user', 'category', 'activities.performedBy', 'responses.admin'])
-                ->findOrFail($id);
+        $report = $this->applyRoleVisibility(
+            Report::with(['user', 'category', 'activities.performedBy', 'responses.admin']),
+            $admin
+        )->findOrFail($id);
 
         // Get report history/activities
         $activities = Activity::where('report_id', $id)
@@ -155,7 +157,6 @@ class HandleReportsController extends Controller
     public function update(Request $request, $id)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
         $request->validate([
             'assigned_to' => 'nullable|string|max:255',
@@ -169,9 +170,7 @@ class HandleReportsController extends Controller
             'status.in' => 'Invalid status selected.',
         ]);
 
-        $report = Report::whereHas('user', function($query) use ($departmentId) {
-            $query->where('department_id', $departmentId);
-        })->findOrFail($id);
+        $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
 
         $oldStatus = $report->status;
 
@@ -184,7 +183,7 @@ class HandleReportsController extends Controller
 
             ReportResponse::create([
                 'report_id' => $lockedReport->id,
-                'admin_id' => $admin->id,
+                'dsdo_id' => $admin->id,
                 'response_number' => $nextResponseNumber,
                 'assigned_to' => $request->assigned_to,
                 'department' => $request->department,
@@ -225,7 +224,6 @@ class HandleReportsController extends Controller
     public function bulkUpdate(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
         $request->validate([
             'report_ids' => 'required|array',
@@ -235,9 +233,10 @@ class HandleReportsController extends Controller
             'status' => 'required_if:bulk_action,status_change|nullable|in:approved,under review,resolved,rejected',
         ]);
 
-        $reports = Report::whereIn('id', $request->report_ids)
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-            ->get();
+        $reports = $this->applyRoleVisibility(
+            Report::whereIn('id', $request->report_ids),
+            $admin
+        )->get();
 
         foreach ($reports as $report) {
             if ($request->bulk_action === 'assign' && $request->assigned_to) {
@@ -284,16 +283,16 @@ class HandleReportsController extends Controller
     public function export(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
-        $query = Report::with(['user', 'category'])
+        $query = $this->applyRoleVisibility(Report::with(['user', 'category'])
             ->where(function ($q) {
                 $q->whereRaw('LOWER(status) = ?', ['approved'])
                   ->orWhereRaw('LOWER(status) = ?', ['rejected'])
                   ->orWhereRaw('LOWER(status) = ?', ['under review'])
                   ->orWhereRaw('LOWER(status) = ?', ['resolved']);
-            })
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId));
+            }),
+            $admin
+        );
 
         // Apply same filters as index
         if ($request->filled('category')) {
@@ -334,3 +333,4 @@ class HandleReportsController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
+

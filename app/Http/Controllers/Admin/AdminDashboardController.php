@@ -13,50 +13,42 @@ class AdminDashboardController extends Controller
         $admin = Auth::user();
         $departmentId = $admin->department_id;
 
-        return view('admin.admindashboard', [
-            // Filter reports by department
-            'totalReports' => Report::whereHas('user', function($query) use ($departmentId) {
+        $baseQuery = Report::query();
+        if ($admin->is_top_management) {
+            $baseQuery->whereHas('category', function ($query) {
+                $query->whereIn('classification', ['Major', 'Grave']);
+            });
+        } else {
+            $baseQuery->whereHas('user', function($query) use ($departmentId) {
                 $query->where('department_id', $departmentId);
-            })->count(),
+            });
+        }
 
-            'pendingReports' => Report::where('status', 'Pending')
-                ->whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })->count(),
+        return view('admin.admindashboard', [
+            'totalReports' => (clone $baseQuery)->count(),
 
-            'underReview' => Report::whereRaw('LOWER(status) = ?', ['under review'])
-                ->whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })->count(),
+            'pendingReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['pending'])->count(),
 
-            'resolvedReports' => Report::whereRaw('LOWER(status) = ?', ['resolved'])
-                ->whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })->count(),
+            'underReview' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['under review'])->count(),
 
-            'approvedReports' => Report::whereRaw('LOWER(status) = ?', ['approved'])
-                ->whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })->count(),
+            'resolvedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['resolved'])->count(),
 
-            'rejectedReports' => Report::whereRaw('LOWER(status) = ?', ['rejected'])
-                ->whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })->count(),
+            'approvedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['approved'])->count(),
 
-            // Only recent reports from same department
-            'recentReports' => Report::whereHas('user', function($query) use ($departmentId) {
-                    $query->where('department_id', $departmentId);
-                })
-                ->with(['user', 'category']) // Load relationships
+            'rejectedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['rejected'])->count(),
+
+            'recentReports' => (clone $baseQuery)
+                ->with(['user', 'category'])
                 ->latest()
                 ->take(10)
                 ->get(),
 
-            // Only users from same department (exclude admins)
+            // Only regular users in same department (exclude privileged accounts)
             'totalUsers' => User::where('department_id', $departmentId)
-                ->where('is_admin', 0)
+                ->where('is_department_student_discipline_officer', 0)
+                ->where('is_top_management', 0)
                 ->count(),
         ]);
     }
 }
+

@@ -11,7 +11,7 @@ use App\Helpers\ActivityLogger;
 class AdminReportController extends Controller
 {
     /**
-     * Show the Admin Dashboard (Overview)
+     * Show the Department Student Discipline Officer Dashboard (Overview)
      */
     public function index()
     {
@@ -39,7 +39,7 @@ class AdminReportController extends Controller
             })->count();
 
         $totalUsers = User::where('department_id', $departmentId)
-            ->where('is_admin', 0)
+            ->where('is_department_student_discipline_officer', 0)
             ->count();
 
         // Fetch the most recent reports from the same department
@@ -155,3 +155,5 @@ class AdminReportController extends Controller
 }
 
 }
+
+

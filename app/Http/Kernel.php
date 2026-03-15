@@ -59,11 +59,13 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
 
         // 👇 Custom admin middleware
-        'is_admin' => \App\Http\Middleware\IsAdmin::class,
+        'is_department_student_discipline_officer' => \App\Http\Middleware\IsAdmin::class,
     ];
     protected $middlewareAliases = [
     // ... existing middleware
     'check.user.status' => \App\Http\Middleware\CheckUserStatus::class,
 ];
 }
+
+
 

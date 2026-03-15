@@ -3,6 +3,15 @@
 @section('title', 'User Profile - Sincidentre')
 
 @section('content')
+    @php
+        $roleMap = [
+            'student' => 'Student',
+            'faculty' => 'Faculty',
+            'employee_staff' => 'Employee/Staff',
+        ];
+        $displayRole = $roleMap[Auth::user()->registrant_type ?? ''] ?? 'User';
+    @endphp
+
     <div class="profile-container animate">
 
         <!-- ✅ Success Message -->
@@ -36,7 +45,7 @@
 
             <h2>{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h2>
             <p>Email: {{ Auth::user()->email }}</p>
-            <p>Role: {{ Auth::user()->role ?? 'User' }}</p>
+            <p>Role: {{ $displayRole }}</p>
         </div>
 
         <!-- Account Settings -->

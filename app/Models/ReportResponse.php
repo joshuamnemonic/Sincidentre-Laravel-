@@ -11,7 +11,7 @@ class ReportResponse extends Model
 
     protected $fillable = [
         'report_id',
-        'admin_id',
+        'dsdo_id',
         'response_number',
         'assigned_to',
         'department',
@@ -31,6 +31,8 @@ class ReportResponse extends Model
 
     public function admin()
     {
-        return $this->belongsTo(User::class, 'admin_id');
+        return $this->belongsTo(User::class, 'dsdo_id');
     }
 }
+
+

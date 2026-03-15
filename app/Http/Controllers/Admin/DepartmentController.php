@@ -10,10 +10,10 @@ class DepartmentController extends Controller
 {
     public function index()
     {
-        // ✅ Count only regular users (where is_admin = 0)
+        // ✅ Count only regular users (where is_department_student_discipline_officer = 0)
         $departments = Department::withCount([
             'users as regular_users_count' => function ($query) {
-                $query->where('is_admin', 0); // Only count non-admin users
+                $query->where('is_department_student_discipline_officer', 0); // Only count non-admin users
             }
         ])
         ->orderBy('name')
@@ -36,3 +36,4 @@ class DepartmentController extends Controller
     }
 
 }
+

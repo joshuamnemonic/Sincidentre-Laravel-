@@ -15,7 +15,7 @@ class ActivityLogger
         ?string $remarks = null
     ) {
         ActivityLog::create([
-            'admin_id'     => Auth::id(),
+            'dsdo_id'     => Auth::id(),
             'performed_by' => Auth::user()->name ?? Auth::user()->email,
             'action'       => $action,
             'report_id'    => $reportId,
@@ -25,3 +25,5 @@ class ActivityLogger
         ]);
     }
 }
+
+
