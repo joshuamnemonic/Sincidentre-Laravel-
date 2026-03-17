@@ -5,6 +5,25 @@
 @section('page-title', 'My Profile')
 
 @section('content')
+    @php
+        $user = Auth::user();
+        $registrantType = strtolower(trim((string) ($user->registrant_type ?? '')));
+        $accountRoleLabel = $user->is_top_management
+            ? 'Top Management'
+            : ($user->is_department_student_discipline_officer
+                ? 'Department Student Discipline Officer'
+                : match ($registrantType) {
+                    'student' => 'Student',
+                    'faculty' => 'Faculty',
+                    'employee_staff' => 'Employee/Staff',
+                    'employee/staff' => 'Employee/Staff',
+                    'employee staff' => 'Employee/Staff',
+                    default => 'N/A',
+                });
+        $profilePhoto = $user->profile_picture ? asset($user->profile_picture) : asset('images/default-avatar.png');
+        $displayOffice = $user->department->name ?? ($user->employee_office ?? 'N/A');
+    @endphp
+
     <div class="profile-container">
 
         <!-- Success Message -->
@@ -38,22 +57,23 @@
         <!-- Profile Header Section -->
         <section style="text-align: center; margin-bottom: 2rem;">
             <div style="display: inline-block; position: relative;">
-                <img src="{{ Auth::user()->profile_picture ? asset(Auth::user()->profile_picture) : asset('images/default-avatar.png') }}" 
+                <img src="{{ $profilePhoto }}" 
                      alt="Profile Picture" 
-                     style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+                     style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.2);"
+                     id="profile-picture-preview-main">
             </div>
             
             <h2 style="color: white; margin-top: 1rem; font-size: 1.8rem; font-weight: 700;">
-                {{ Auth::user()->first_name }} {{ Auth::user()->last_name }}
+                {{ $user->first_name }} {{ $user->last_name }}
             </h2>
             <p style="color: rgba(255,255,255,0.8); font-size: 0.95rem; margin: 0.5rem 0;">
-                📧 {{ Auth::user()->email }}
+                📧 {{ $user->email }}
             </p>
             <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0.25rem 0;">
-                🏢 {{ Auth::user()->department->name ?? 'Department Student Discipline Officer' }}
+                🏢 {{ $displayOffice }}
             </p>
             <span class="role-badge admin" style="margin-top: 0.75rem; display: inline-block;">
-                Department Student Discipline Officer
+                {{ $accountRoleLabel }}
             </span>
         </section>
 
@@ -64,6 +84,7 @@
             <form method="POST" action="{{ route('admin.profile.update') }}" enctype="multipart/form-data" style="padding: 2rem;">
                 @csrf
                 @method('PATCH')
+                <input type="hidden" name="form_type" value="profile">
 
                 <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; max-width: 600px;">
                     
@@ -90,9 +111,10 @@
                         <input type="text" 
                                id="first_name" 
                                name="first_name" 
-                               value="{{ Auth::user()->first_name }}" 
+                               value="{{ $user->first_name }}" 
                                readonly
                                style="width: 100%; padding: 0.825rem 1.1rem; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.15); border-radius: 0.6rem; color: rgba(255,255,255,0.6); cursor: not-allowed;">
+                           <small style="color: rgba(255,255,255,0.6); font-size: 0.8rem; display: block; margin-top: 0.25rem;">Managed by your registration profile.</small>
                     </div>
 
                     <!-- Last Name -->
@@ -103,9 +125,10 @@
                         <input type="text" 
                                id="last_name" 
                                name="last_name" 
-                               value="{{ Auth::user()->last_name }}" 
+                               value="{{ $user->last_name }}" 
                                readonly
                                style="width: 100%; padding: 0.825rem 1.1rem; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.15); border-radius: 0.6rem; color: rgba(255,255,255,0.6); cursor: not-allowed;">
+                           <small style="color: rgba(255,255,255,0.6); font-size: 0.8rem; display: block; margin-top: 0.25rem;">Managed by your registration profile.</small>
                     </div>
 
                     <!-- Email -->
@@ -116,9 +139,10 @@
                         <input type="email" 
                                id="email" 
                                name="email" 
-                               value="{{ Auth::user()->email }}" 
+                               value="{{ $user->email }}" 
                                readonly
                                style="width: 100%; padding: 0.825rem 1.1rem; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.15); border-radius: 0.6rem; color: rgba(255,255,255,0.6); cursor: not-allowed;">
+                           <small style="color: rgba(255,255,255,0.6); font-size: 0.8rem; display: block; margin-top: 0.25rem;">Email changes require administrator verification.</small>
                     </div>
 
                     <!-- Contact Number -->
@@ -129,9 +153,10 @@
                         <input type="text" 
                                id="phone" 
                                name="phone" 
-                               value="{{ Auth::user()->phone ?? '' }}" 
+                               value="{{ old('phone', $user->phone ?? '') }}" 
                                placeholder="Enter contact number"
                                style="width: 100%; padding: 0.825rem 1.1rem; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.26); border-radius: 0.6rem; color: white;">
+                        <small style="color: rgba(255,255,255,0.6); font-size: 0.8rem; display: block; margin-top: 0.25rem;">You may use digits, spaces, plus sign, dashes, and parentheses.</small>
                     </div>
 
                     <!-- Divider -->
@@ -139,7 +164,7 @@
 
                     <!-- Change Password Section -->
                     <h3 style="color: white; font-size: 1.2rem; margin: 0 0 1rem 0;">
-                        🔒 Change Password
+                        Change Password
                     </h3>
 
                     <!-- Current Password -->
@@ -165,7 +190,7 @@
                                placeholder="Enter new password"
                                style="width: 100%; padding: 0.825rem 1.1rem; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.26); border-radius: 0.6rem; color: white;">
                         <small style="color: rgba(255,255,255,0.6); font-size: 0.8rem; display: block; margin-top: 0.25rem;">
-                            Minimum 8 characters
+                            Use at least 8 characters with letters and numbers.
                         </small>
                     </div>
 
@@ -184,10 +209,10 @@
                     <!-- Form Buttons -->
                     <div style="display: flex; gap: 1rem; margin-top: 1rem;">
                         <button type="submit" class="btn-primary" style="flex: 1;">
-                            💾 Save Changes
+                            Save Profile Details
                         </button>
                         <button type="reset" class="btn-secondary" style="flex: 1;">
-                            ❌ Cancel
+                            Reset
                         </button>
                     </div>
                 </div>
@@ -216,6 +241,36 @@
     input[type="file"]::file-selector-button:hover {
         background: rgba(255,255,255,0.3);
     }
+
+    #profile-picture-preview-main {
+        transition: all 0.3s ease;
+    }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+    (function () {
+        const profileInput = document.getElementById('profile_picture');
+        const previewMain = document.getElementById('profile-picture-preview-main');
+
+        if (!profileInput || !previewMain) {
+            return;
+        }
+
+        profileInput.addEventListener('change', function (event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (readerEvent) {
+                previewMain.src = String(readerEvent.target && readerEvent.target.result ? readerEvent.target.result : previewMain.src);
+            };
+            reader.readAsDataURL(file);
+        });
+    })();
+</script>
 @endpush
 

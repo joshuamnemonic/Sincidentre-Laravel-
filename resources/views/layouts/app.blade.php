@@ -13,8 +13,79 @@
 </head>
 <body>
 
+    @php
+        $userNotifications = collect();
+        $unreadNotificationCount = 0;
+
+        if (Auth::check()) {
+            $authUserId = Auth::id();
+            $readNotificationKeys = collect(session('read_notifications_' . $authUserId, []));
+
+            $timelineReports = \App\Models\Report::query()
+                ->where('user_id', $authUserId)
+                ->whereHas('responses')
+                ->orderByDesc('updated_at')
+                ->limit(8)
+                ->get(['id', 'updated_at']);
+
+            $hearingReports = \App\Models\Report::query()
+                ->where('user_id', $authUserId)
+                ->where(function ($query) {
+                    $query->whereNotNull('hearing_date')
+                        ->orWhereNotNull('hearing_time')
+                        ->orWhereNotNull('hearing_venue');
+                })
+                ->orderByDesc('updated_at')
+                ->limit(8)
+                ->get(['id', 'updated_at']);
+
+            foreach ($timelineReports as $reportItem) {
+                $notifKey = 'timeline-' . $reportItem->id;
+                $userNotifications->push([
+                    'key' => $notifKey,
+                    'type' => 'timeline',
+                    'title' => 'Response Timeline Updated',
+                    'message' => 'Case #' . $reportItem->id . ' has a Department Student Discipline Officer response update.',
+                    'url' => route('report.show', [
+                        'id' => $reportItem->id,
+                        'notif_key' => $notifKey,
+                        'goto' => 'admin-response-timeline',
+                    ]),
+                    'time' => $reportItem->updated_at,
+                    'is_read' => $readNotificationKeys->contains($notifKey),
+                ]);
+            }
+
+            foreach ($hearingReports as $reportItem) {
+                $notifKey = 'hearing-' . $reportItem->id;
+                $userNotifications->push([
+                    'key' => $notifKey,
+                    'type' => 'hearing',
+                    'title' => 'Hearing Notification',
+                    'message' => 'Case #' . $reportItem->id . ' has a hearing/case record update.',
+                    'url' => route('report.show', [
+                        'id' => $reportItem->id,
+                        'notif_key' => $notifKey,
+                        'goto' => 'case-records',
+                    ]),
+                    'time' => $reportItem->updated_at,
+                    'is_read' => $readNotificationKeys->contains($notifKey),
+                ]);
+            }
+
+            $userNotifications = $userNotifications
+                ->sortByDesc(function ($item) {
+                    return $item['time'];
+                })
+                ->take(12)
+                ->values();
+
+            $unreadNotificationCount = $userNotifications->where('is_read', false)->count();
+        }
+    @endphp
+
     <!-- Mobile Menu Toggle Button -->
-    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
+    <button class="mobile-menu-toggle" onclick="toggleSidebarMenu()" aria-label="Toggle Menu" aria-expanded="true" aria-controls="sidebar">
         <span class="hamburger-icon">☰</span>
     </button>
 
@@ -95,11 +166,63 @@
 
     <!-- Main Content Area -->
     <main class="dashboard">
+        <div class="user-topbar">
+            <div class="user-topbar-spacer"></div>
+
+            <div class="notification-wrapper" id="notificationWrapper">
+                <button
+                    type="button"
+                    class="notification-bell-btn"
+                    id="notificationBell"
+                    aria-label="Open notifications"
+                    aria-expanded="false"
+                    aria-controls="notificationDropdown"
+                >
+                    <span class="notification-bell-icon">🔔</span>
+                    @if($unreadNotificationCount > 0)
+                        <span class="notification-badge">{{ $unreadNotificationCount }}</span>
+                    @endif
+                </button>
+
+                <div class="notification-dropdown" id="notificationDropdown" role="menu" aria-labelledby="notificationBell">
+                    <div class="notification-dropdown-header">Notifications</div>
+
+                    @forelse($userNotifications as $notification)
+                        <a href="{{ $notification['url'] }}" class="notification-item notification-item-{{ $notification['type'] }} {{ $notification['is_read'] ? 'notification-item-read' : '' }}" role="menuitem">
+                            <div class="notification-item-title">{{ $notification['title'] }}</div>
+                            <div class="notification-item-message">{{ $notification['message'] }}</div>
+                            <small class="notification-item-time">{{ optional($notification['time'])->diffForHumans() }}</small>
+                        </a>
+                    @empty
+                        <div class="notification-empty">No notifications yet.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
         @yield('content')
     </main>
 
     <!-- Scripts -->
     <script>
+        function enableResponsiveTables() {
+            document.querySelectorAll('table').forEach(function(table) {
+                table.classList.add('responsive-table');
+
+                const headCells = table.querySelectorAll('thead th');
+                if (!headCells.length) {
+                    return;
+                }
+
+                table.querySelectorAll('tbody tr').forEach(function(row) {
+                    row.querySelectorAll('td').forEach(function(cell, index) {
+                        const headerText = headCells[index] ? headCells[index].textContent.trim() : 'Field';
+                        cell.setAttribute('data-label', headerText);
+                    });
+                });
+            });
+        }
+
         // Logout functionality
         document.getElementById('logout-btn').addEventListener('click', function(e) {
             e.preventDefault();
@@ -108,19 +231,44 @@
             }
         });
 
+        enableResponsiveTables();
+
+        function isMobileView() {
+            return window.innerWidth < 768;
+        }
+
+        function toggleSidebarMenu() {
+            if (isMobileView()) {
+                toggleMobileMenu();
+                return;
+            }
+
+            const body = document.body;
+            const isCollapsed = body.classList.toggle('sidebar-collapsed');
+            document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', String(!isCollapsed));
+        }
+
         // Mobile menu functions
         function toggleMobileMenu() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
+            const body = document.body;
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
+            body.classList.toggle('menu-open', sidebar.classList.contains('active'));
+            document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', String(sidebar.classList.contains('active')));
         }
 
         function closeMobileMenu() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
+            const body = document.body;
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
+            body.classList.remove('menu-open');
+            if (isMobileView()) {
+                document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', 'false');
+            }
         }
 
         // Close mobile menu when clicking a link
@@ -136,8 +284,54 @@
         window.addEventListener('resize', function() {
             if (window.innerWidth >= 768) {
                 closeMobileMenu();
+                document.body.classList.remove('menu-open');
+                document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', String(!document.body.classList.contains('sidebar-collapsed')));
+            } else {
+                document.body.classList.remove('sidebar-collapsed');
+                document.body.classList.remove('menu-open');
+                document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', 'false');
             }
         });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && isMobileView()) {
+                closeMobileMenu();
+            }
+        });
+
+        if (isMobileView()) {
+            document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', 'false');
+        }
+
+        const notificationBell = document.getElementById('notificationBell');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+
+        function closeNotificationDropdown() {
+            if (!notificationBell || !notificationDropdown) return;
+            notificationDropdown.classList.remove('show');
+            notificationBell.setAttribute('aria-expanded', 'false');
+        }
+
+        if (notificationBell && notificationDropdown) {
+            notificationBell.addEventListener('click', function (event) {
+                event.stopPropagation();
+                notificationDropdown.classList.toggle('show');
+                const isExpanded = notificationDropdown.classList.contains('show');
+                notificationBell.setAttribute('aria-expanded', String(isExpanded));
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!notificationDropdown.contains(event.target) && !notificationBell.contains(event.target)) {
+                    closeNotificationDropdown();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeNotificationDropdown();
+                }
+            });
+        }
     </script>
 
     <script src="{{ asset('js/sincidentre.js') }}"></script>

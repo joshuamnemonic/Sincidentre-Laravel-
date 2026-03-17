@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
          $middleware->alias([
         'is_department_student_discipline_officer' => \App\Http\Middleware\IsAdmin::class,
+        'is_top_management' => \App\Http\Middleware\IsTopManagement::class,
+        'pending_handling_response' => \App\Http\Middleware\EnsureHandlingResponseCompleted::class,
     ]);
     
     })

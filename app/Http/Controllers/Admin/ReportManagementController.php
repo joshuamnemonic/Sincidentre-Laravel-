@@ -7,20 +7,41 @@ use Illuminate\Http\Request;
 use App\Models\Report;
 use App\Models\Activity;
 use App\Models\Category;
+use App\Services\ReportRoutingService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class ReportManagementController extends Controller
 {
     private function applyRoleVisibility($query, $manager)
     {
         if ($manager->is_top_management) {
-            return $query->whereHas('category', function ($q) {
-                $q->whereIn('classification', ['Major', 'Grave']);
+            $positionCode = trim((string) ($manager->routing_position_code ?? ''));
+            $fullName = strtolower(trim((string) (($manager->first_name ?? '') . ' ' . ($manager->last_name ?? ''))));
+
+            return $query->where(function ($q) use ($positionCode, $fullName) {
+                if ($positionCode !== '') {
+                    $q->where('assigned_position_code', $positionCode);
+                }
+
+                if ($fullName !== '') {
+                    if ($positionCode !== '') {
+                        $q->orWhereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    } else {
+                        $q->whereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    }
+                }
+
+                if ($positionCode === '' && $fullName === '') {
+                    $q->whereRaw('1 = 0');
+                }
             });
         }
 
         return $query->whereHas('user', function ($q) use ($manager) {
             $q->where('department_id', $manager->department_id);
+        })->whereHas('category', function ($q) {
+            $q->whereNotIn('classification', ['Major', 'Grave']);
         });
     }
 
@@ -49,6 +70,7 @@ class ReportManagementController extends Controller
         $admin = Auth::user();
 
         $report = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin)->findOrFail($id);
+        Gate::authorize('accessHandling', $report);
 
         // Get report activities
         $activities = Activity::where('report_id', $id)
@@ -61,16 +83,19 @@ class ReportManagementController extends Controller
     /**
      * Approve a report (only from admin's department)
      */
-    public function approve($id)
+    public function approve($id, ReportRoutingService $routingService)
     {
         $admin = Auth::user();
 
         $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
+        Gate::authorize('decide', $report);
 
         $oldStatus = $report->status;
-        $report->status = 'Approved';
+        $report->status = Report::STATUS_APPROVED;
         $report->handled_by = $admin->id;
         $report->save();
+
+        $routingService->autoAssign($report, 'approval', $admin->id, false);
 
         // Log the action
         Activity::create([
@@ -79,7 +104,7 @@ class ReportManagementController extends Controller
             'action' => 'Report Approved',
             'performed_by' => $admin->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Approved',
+            'new_status' => Report::STATUS_APPROVED,
             'remarks' => 'Report has been approved by ' . $admin->first_name . ' ' . $admin->last_name,
         ]);
 
@@ -104,9 +129,10 @@ class ReportManagementController extends Controller
 
         // Only reject reports from the same department
         $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
+        Gate::authorize('decide', $report);
 
         $oldStatus = $report->status;
-        $report->status = 'Rejected';
+        $report->status = Report::STATUS_REJECTED;
         $report->rejection_reason = $request->rejection_reason;
         $report->handled_by = $admin->id;
         $report->save();
@@ -118,7 +144,7 @@ class ReportManagementController extends Controller
             'action' => 'Report Rejected',
             'performed_by' => $admin->id,
             'old_status' => $oldStatus,
-            'new_status' => 'Rejected',
+            'new_status' => Report::STATUS_REJECTED,
             'remarks' => 'Rejection reason: ' . $request->rejection_reason,
         ]);
 
@@ -152,6 +178,7 @@ class ReportManagementController extends Controller
         $admin = Auth::user();
 
         $report = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin)->findOrFail($id);
+        Gate::authorize('accessHandling', $report);
 
         $activities = Activity::where('report_id', $report->id)
             ->orderBy('created_at', 'desc')
@@ -182,6 +209,7 @@ class ReportManagementController extends Controller
 
         // Find report (only from admin's department)
         $report = $this->applyRoleVisibility(Report::query(), $admin)->findOrFail($id);
+        Gate::authorize('updateHandling', $report);
 
         $oldStatus = $report->status;
         $oldAssignedTo = $report->assigned_to;
@@ -189,6 +217,7 @@ class ReportManagementController extends Controller
         // Update the report details
         $report->update([
             'assigned_to' => $request->assigned_to,
+            'assigned_position_code' => null,
             'department' => $request->department,
             'target_date' => $request->target_date,
             'remarks' => $request->remarks,
@@ -268,12 +297,11 @@ class ReportManagementController extends Controller
 
         $callback = function() use ($reports) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['ID', 'Title', 'Reporter', 'Category', 'Status', 'Incident Date', 'Handled By']);
+            fputcsv($file, ['ID', 'Reporter', 'Category', 'Status', 'Incident Date', 'Handled By']);
 
             foreach ($reports as $report) {
                 fputcsv($file, [
                     $report->id,
-                    $report->title,
                     ($report->user->first_name ?? '') . ' ' . ($report->user->last_name ?? ''),
                     $report->category->name ?? 'N/A',
                     $report->status,
@@ -288,7 +316,7 @@ class ReportManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    public function escalateToTopManagement($id)
+    public function escalateToTopManagement($id, ReportRoutingService $routingService)
     {
         $admin = Auth::user();
 
@@ -297,6 +325,7 @@ class ReportManagementController extends Controller
         }
 
         $report = $this->applyRoleVisibility(Report::with('category'), $admin)->findOrFail($id);
+        Gate::authorize('escalate', $report);
 
         if (!$report->category || !in_array($report->category->classification, ['Major', 'Grave'], true)) {
             return redirect()->route('admin.reports')->with('error', 'Only Major or Grave reports can be escalated to Top Management.');
@@ -307,6 +336,8 @@ class ReportManagementController extends Controller
             'escalated_at' => now(),
             'escalated_by' => $admin->id,
         ]);
+
+        $routingService->autoAssign($report, 'approval', $admin->id, false);
 
         Activity::create([
             'report_id' => $report->id,

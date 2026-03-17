@@ -21,13 +21,13 @@
     <!-- Reports Table -->
     <section id="reports">
         <div class="table-wrapper">
-            <table>
+            <table class="handle-report-table reports-table">
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Title</th>
                         <th>Reporter</th>
                         <th>Category</th>
+                        <th>Person Involvement</th>
                         <th>Date</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -37,18 +37,15 @@
                     @forelse ($reports as $report)
                         <tr>
                             <td>{{ $report->id }}</td>
-                            <td>{{ $report->title }}</td>
                             <td>{{ $report->user->first_name ?? 'Unknown' }} {{ $report->user->last_name ?? '' }}</td>
                             <td>
                                 @if($report->category)
-                                    <div>{{ $report->category->name }}</div>
-                                    <small style="color:#666;">
-                                        {{ $report->category->main_category_code }} - {{ $report->category->classification }}
-                                    </small>
+                                    {{ strtoupper($report->category->main_category_code) }}
                                 @else
                                     N/A
                                 @endif
                             </td>
+                            <td>{{ $report->person_involvement ? ucfirst($report->person_involvement) : 'N/A' }}</td>
                             <td>{{ $report->incident_date ? \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') : 'N/A' }}</td>
                             <td>
                                 <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">
@@ -61,24 +58,24 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="action-buttons">
-                                    <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View</a>
+                                <div class="action-buttons reports-action-buttons">
+                                    <a href="{{ route('admin.reports.show', $report->id) }}" class="btn btn-view report-action-btn">View</a>
 
                                     @if(!Auth::user()->is_top_management && in_array($report->category->classification ?? '', ['Major', 'Grave']) && !$report->escalated_to_top_management)
-                                        <form method="POST" action="{{ route('admin.reports.escalate', $report->id) }}" style="display:inline;">
+                                        <form method="POST" action="{{ route('admin.reports.escalate', $report->id) }}" class="inline-action-form">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="btn-secondary" onclick="return confirm('Escalate this report to Top Management?')">Escalate</button>
+                                            <button type="submit" class="btn btn-secondary report-action-btn" onclick="return confirm('Escalate this report to Top Management?')">Escalate</button>
                                         </form>
                                     @endif
                                     
-                                    <form method="POST" action="{{ route('admin.reports.approve', $report->id) }}" style="display:inline;">
+                                    <form method="POST" action="{{ route('admin.reports.approve', $report->id) }}" class="inline-action-form">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="btn-approve">Approve</button>
+                                        <button type="submit" class="btn btn-approve report-action-btn">Approve</button>
                                     </form>
 
-                                    <button type="button" class="btn-reject" onclick="openRejectModal({{ $report->id }})">Reject</button>
+                                    <button type="button" class="btn btn-reject report-action-btn" onclick="openRejectModal({{ $report->id }})">Reject</button>
                                 </div>
                             </td>
                         </tr>
@@ -103,8 +100,12 @@
                     @csrf
                     @method('PATCH')
                     <div class="form-group">
-                        <label><strong>Report Title:</strong></label>
-                        <p>{{ $report->title }}</p>
+                        <label><strong>Report ID:</strong></label>
+                        <p>#{{ $report->id }}</p>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>Category:</strong></label>
+                        <p>{{ $report->category->name ?? 'N/A' }}</p>
                     </div>
                     <div class="form-group">
                         <label for="rejection_reason{{ $report->id }}">Reason for Rejection *</label>
@@ -124,6 +125,87 @@
         </div>
     @endforeach
 @endsection
+
+@push('styles')
+<style>
+    .reports-table th,
+    .reports-table td {
+        white-space: normal;
+    }
+
+    .reports-table td {
+        vertical-align: middle;
+    }
+
+    .reports-table th:last-child,
+    .reports-table td:last-child {
+        min-width: 320px;
+    }
+
+    .category-meta-text {
+        color: rgba(255, 255, 255, 0.82);
+    }
+
+    .reports-action-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+
+    .inline-action-form {
+        display: inline-flex;
+        margin: 0;
+        flex: 0 0 auto;
+    }
+
+    .report-action-btn {
+        width: 108px;
+        min-width: 108px;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    @media (max-width: 768px) {
+        .reports-table th:last-child,
+        .reports-table td:last-child {
+            min-width: 0;
+        }
+
+        .reports-action-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.45rem;
+        }
+
+        .inline-action-form {
+            width: 100%;
+            display: block;
+        }
+
+        .report-action-btn {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .reports-action-buttons > a.report-action-btn,
+        .reports-action-buttons > button.report-action-btn,
+        .reports-action-buttons .inline-action-form .report-action-btn {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+        }
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>

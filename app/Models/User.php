@@ -18,6 +18,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'department_id',
         'registrant_type',
         'employee_office',
+        'routing_position_code',
         'employee_id_number',
         'is_department_student_discipline_officer',
         'is_top_management',

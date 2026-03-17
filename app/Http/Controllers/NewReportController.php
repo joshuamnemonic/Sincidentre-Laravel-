@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Report;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class NewReportController extends Controller
 {
@@ -23,7 +24,6 @@ class NewReportController extends Controller
     {
         // ✅ Validation for multiple file uploads
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
             'category' => 'required|string|max:100',
             'description' => 'required|string',
             'incident_date' => 'required|date',
@@ -43,8 +43,7 @@ class NewReportController extends Controller
         }
 
         // ✅ Store report data
-        Report::create([
-            'title' => $validated['title'],
+        $reportPayload = [
             'category' => $validated['category'],
             'description' => $validated['description'],
             'incident_date' => $validated['incident_date'],
@@ -54,7 +53,13 @@ class NewReportController extends Controller
             'status' => 'Pending',
             'submitted_at' => now(),
             'user_id' => Auth::id(),
-        ]);
+        ];
+
+        if (Schema::hasColumn('reports', 'title')) {
+            $reportPayload['title'] = 'LLCC Incident Report';
+        }
+
+        Report::create($reportPayload);
 
         return redirect()
             ->route('newreport')

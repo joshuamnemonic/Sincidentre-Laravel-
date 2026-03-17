@@ -175,7 +175,6 @@
                     <thead>
                         <tr>
                             <th>Report ID</th>
-                            <th>Title</th>
                             <th>Category</th>
                             <th>Incident Date</th>
                             <th>Status</th>
@@ -187,8 +186,7 @@
                         @foreach($user->reports as $report)
                             <tr>
                                 <td>#{{ $report->id }}</td>
-                                <td>{{ $report->title }}</td>
-                                <td>{{ $report->category->name ?? 'N/A' }}</td>
+                                <td>{{ strtoupper($report->category->main_category_code ?? 'N/A') }}</td>
                                 <td>{{ \Carbon\Carbon::parse($report->incident_date)->format('M d, Y') }}</td>
                                 <td>
                                     <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">

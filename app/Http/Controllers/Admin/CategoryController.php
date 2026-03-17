@@ -24,23 +24,34 @@ class CategoryController extends Controller
     // Add new category
     public function store(Request $request)
     {
+        $selectedMainCode = strtoupper((string) $request->input('mainCategoryCode', ''));
+        $resolvedMainCode = $selectedMainCode === 'CUSTOM'
+            ? strtoupper((string) $request->input('customMainCategoryCode', ''))
+            : $selectedMainCode;
+
         $validated = $request->validate([
             'categoryName' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('categories', 'name')->where(function ($query) use ($request) {
-                    return $query->where('main_category_code', strtoupper($request->mainCategoryCode));
+                    $selectedMainCode = strtoupper((string) $request->input('mainCategoryCode', ''));
+                    $resolvedMainCode = $selectedMainCode === 'CUSTOM'
+                        ? strtoupper((string) $request->input('customMainCategoryCode', ''))
+                        : $selectedMainCode;
+
+                    return $query->where('main_category_code', $resolvedMainCode);
                 }),
             ],
-            'mainCategoryCode' => 'required|string|max:1',
+            'mainCategoryCode' => 'required|string',
+            'customMainCategoryCode' => 'nullable|required_if:mainCategoryCode,custom|string|max:1',
             'mainCategoryName' => 'required|string|max:255',
             'classification' => ['required', Rule::in(['Minor', 'Major', 'Grave'])],
         ]);
 
         $category = Category::create([
             'name' => $validated['categoryName'],
-            'main_category_code' => strtoupper($validated['mainCategoryCode']),
+            'main_category_code' => $resolvedMainCode,
             'main_category_name' => $validated['mainCategoryName'],
             'classification' => $validated['classification'],
         ]);

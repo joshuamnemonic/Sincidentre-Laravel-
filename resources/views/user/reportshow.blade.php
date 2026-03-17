@@ -3,6 +3,52 @@
 @section('title', 'Report Details - Sincidentre')
 
 @section('content')
+    @php
+        $currentUser = auth()->user();
+        $userEmail = strtolower(trim((string) ($currentUser->email ?? '')));
+        $involvedEmails = [];
+        if (!empty($report->person_email_address)) {
+            $involvedEmails[] = strtolower(trim((string) $report->person_email_address));
+        }
+        if (is_array($report->additional_persons)) {
+            foreach ($report->additional_persons as $person) {
+                $email = strtolower(trim((string) ($person['email_address'] ?? '')));
+                if ($email !== '') {
+                    $involvedEmails[] = $email;
+                }
+            }
+        }
+        $involvedEmails = array_values(array_unique($involvedEmails));
+        $isReporter = auth()->check() && auth()->id() === $report->user_id;
+        $isInvolvedByEmail = auth()->check() && in_array($userEmail, $involvedEmails, true);
+        $canConfirmHearingNotice = auth()->check() && (
+            $isReporter ||
+            $isInvolvedByEmail
+        );
+
+        $confirmationAction = $isReporter
+            ? 'Reporter Hearing Notice Confirmed'
+            : 'Involved Party Hearing Notice Confirmed';
+
+        $existingConfirmation = auth()->check()
+            ? $report->activities
+                ->where('user_id', auth()->id())
+                ->where('action', $confirmationAction)
+                ->sortByDesc('created_at')
+                ->first()
+            : null;
+
+        $hasConfirmedHearingNotice = (bool) $existingConfirmation;
+    @endphp
+
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+
     <header>
         <h1>Report Details</h1>
         <p>Report ID: #{{ $report->id }}</p>
@@ -13,16 +59,11 @@
         <h2>Report Information</h2>
         <div class="details-grid">
             <div class="detail-item">
-                <label>Title</label>
-                <p>{{ $report->title }}</p>
-            </div>
-            <div class="detail-item">
                 <label>Category</label>
                 @if($report->category)
-                    <p>{{ $report->category->name }}</p>
+                    <p>{{ strtoupper($report->category->main_category_code) }} - {{ $report->category->main_category_name }} / {{ $report->category->name }}</p>
                     <small>
-                        {{ $report->category->main_category_code }} - {{ $report->category->main_category_name }}
-                        ({{ $report->category->classification }})
+                        Classification: {{ $report->category->classification }}
                     </small>
                 @else
                     <p>N/A</p>
@@ -49,6 +90,75 @@
                 <p>{{ $report->description }}</p>
             </div>
         </div>
+    </section>
+
+    <section id="case-records" class="animate">
+        <h2>Case Records and Disciplinary Forms</h2>
+
+        @if($report->hearing_date || $report->hearing_time || $report->hearing_venue)
+            <div class="timeline-item" style="margin-bottom:10px;">
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>Hearing Notification (2303 Replacement)</strong>
+                    </div>
+                    <div class="timeline-remarks"><strong>Date:</strong> {{ $report->hearing_date ? $report->hearing_date->format('F d, Y') : 'N/A' }}</div>
+                    <div class="timeline-remarks"><strong>Time:</strong> {{ $report->hearing_time ? \Carbon\Carbon::parse($report->hearing_time)->format('h:i A') : 'N/A' }}</div>
+                    <div class="timeline-remarks"><strong>Venue:</strong> {{ $report->hearing_venue ?: 'N/A' }}</div>
+                    @if($canConfirmHearingNotice && !$hasConfirmedHearingNotice)
+                        <form action="{{ route('reports.confirmHearingNotice', $report->id) }}" method="POST" style="margin-top:8px;">
+                            @csrf
+                            <button type="submit">Confirm Receipt of Hearing Notification</button>
+                        </form>
+                    @elseif($canConfirmHearingNotice && $hasConfirmedHearingNotice)
+                        <div class="timeline-remarks" style="margin-top:8px; color:#86efac; font-weight:600;">
+                            Hearing notification already confirmed
+                            @if($existingConfirmation?->created_at)
+                                ({{ $existingConfirmation->created_at->format('M d, Y h:i A') }})
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if($report->reprimand_document_path)
+            <div class="timeline-item" style="margin-bottom:10px;">
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>Form 2304 - Written Reprimand has been issued to the person found to have violated school rules</strong>
+                    </div>
+                    <div class="timeline-remarks"><strong>Acknowledgment:</strong>
+                        {{ $report->student_acknowledged_reprimand_at ? $report->student_acknowledged_reprimand_at->format('M d, Y h:i A') : 'Pending' }}
+                    </div>
+                    @if(auth()->check() && auth()->id() === $report->user_id && !$report->student_acknowledged_reprimand_at)
+                        <form action="{{ route('reports.acknowledge-reprimand', $report->id) }}" method="POST" style="margin-top:8px;">
+                            @csrf
+                            <button type="submit">Acknowledge Receipt of Form 2304</button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if($report->suspension_document_path)
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>Form 2305 - {{ $report->disciplinary_action ?? 'Disciplinary Action' }}</strong>
+                    </div>
+                    <div class="timeline-remarks">
+                        <a href="{{ asset('storage/' . $report->suspension_document_path) }}" target="_blank" class="file-link">Open Stored Form 2305</a>
+                    </div>
+                    <div class="timeline-remarks"><strong>Effective Date:</strong>
+                        {{ $report->suspension_effective_date ? $report->suspension_effective_date->format('F d, Y') : 'N/A' }}
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if(!$report->reprimand_document_path && !$report->suspension_document_path)
+            <p class="no-data">No disciplinary forms have been issued for this case yet.</p>
+        @endif
     </section>
 
     <!-- Evidence Section -->
@@ -120,6 +230,10 @@
                             </div>
 
                             <div class="timeline-remarks">
+                                <strong>Response Type:</strong> {{ $response->response_type ?? 'Handling Response' }}
+                            </div>
+
+                            <div class="timeline-remarks">
                                 <strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}
                             </div>
                             <div class="timeline-remarks">
@@ -131,6 +245,14 @@
                             </div>
                             <div class="timeline-remarks">
                                 <strong>Remarks:</strong> {{ $response->remarks ?? 'No remarks' }}
+                            </div>
+                            <div class="timeline-remarks">
+                                <strong>Attachment:</strong>
+                                @if($response->attachment_path)
+                                    <a href="{{ asset('storage/' . $response->attachment_path) }}" target="_blank" class="file-link">View attachment</a>
+                                @else
+                                    None
+                                @endif
                             </div>
 
                             <div class="timeline-footer">

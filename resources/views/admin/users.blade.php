@@ -13,14 +13,16 @@
             <option value="suspended" {{ request('status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
             <option value="deactivated" {{ request('status') == 'deactivated' ? 'selected' : '' }}>Deactivated</option>
         </select>
-        <select name="department" onchange="this.form.submit()">
-            <option value="">All Departments</option>
-            @foreach($departments as $dept)
-                <option value="{{ $dept->id }}" {{ request('department') == $dept->id ? 'selected' : '' }}>
-                    {{ $dept->name }}
-                </option>
-            @endforeach
-        </select>
+        @if(($canFilterDepartment ?? false) === true)
+            <select name="department" onchange="this.form.submit()">
+                <option value="">All Departments</option>
+                @foreach($departments as $dept)
+                    <option value="{{ $dept->id }}" {{ request('department') == $dept->id ? 'selected' : '' }}>
+                        {{ $dept->name }}
+                    </option>
+                @endforeach
+            </select>
+        @endif
     </form>
 @endsection
 
@@ -42,7 +44,7 @@
     <!-- Statistics Cards -->
     <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
         <div class="stat-card">
-            <h4>Total Users</h4>
+            <h4>{{ $totalUsersTitle ?? 'Total Users' }}</h4>
             <p class="stat-number">{{ $totalUsers }}</p>
         </div>
         <div class="stat-card">

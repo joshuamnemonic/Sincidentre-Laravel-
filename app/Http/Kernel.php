@@ -60,6 +60,7 @@ class Kernel extends HttpKernel
 
         // 👇 Custom admin middleware
         'is_department_student_discipline_officer' => \App\Http\Middleware\IsAdmin::class,
+        'pending_handling_response' => \App\Http\Middleware\EnsureHandlingResponseCompleted::class,
     ];
     protected $middlewareAliases = [
     // ... existing middleware

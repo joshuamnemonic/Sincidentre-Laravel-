@@ -52,7 +52,6 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Title</th>
                     <th>Reporter</th>
                     <th>Category</th>
                     <th>Date</th>
@@ -62,11 +61,16 @@
             </thead>
             <tbody>
                 @forelse($recentReports as $report)
+                    @php
+                        $normalizedStatus = \App\Models\Report::normalizeStatus($report->status);
+                        $reportRoute = $normalizedStatus === \App\Models\Report::STATUS_PENDING
+                            ? route('admin.reports.show', $report->id)
+                            : route('admin.handlereports.show', $report->id);
+                    @endphp
                     <tr>
                         <td>{{ $report->id }}</td>
-                        <td>{{ $report->title }}</td>
                         <td>{{ $report->user->name }}</td>
-                        <td>{{ $report->category->name ?? 'N/A' }}</td>
+                        <td>{{ strtoupper($report->category->main_category_code ?? 'N/A') }}</td>
                         <td>{{ \Carbon\Carbon::parse($report->incident_date)->format('M d, Y') }}</td>
                         <td>
                             <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">
@@ -74,12 +78,12 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View</a>
+                            <a href="{{ $reportRoute }}" class="btn-view">View</a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" style="text-align: center;">No reports found.</td>
+                        <td colspan="6" style="text-align: center;">No reports found.</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -14,6 +14,7 @@ class Category extends Model
         'main_category_code',
         'main_category_name',
         'classification',
+        'routing_group_code',
     ];
 
     protected $casts = [

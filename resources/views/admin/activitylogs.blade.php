@@ -6,9 +6,13 @@
 
 @section('header-search')
   <div style="display: flex; align-items: center; gap: 10px;">
-    <span style="color: #666; font-size: 0.9em;">
-      Showing activities for: <strong>{{ Auth::user()->department->name ?? 'Your Department' }}</strong>
-    </span>
+    @if($isTopManagement ?? false)
+      <span style="color: #666; font-size: 0.9em;">Showing activities for: <strong>All Departments</strong></span>
+    @else
+      <span style="color: #666; font-size: 0.9em;">
+        Showing activities for: <strong>{{ Auth::user()->department->name ?? 'Your Department' }}</strong>
+      </span>
+    @endif
   </div>
 @endsection
 
@@ -33,13 +37,33 @@
         <label for="action">Action Type:</label>
         <select name="action" id="action" style="width: 100%; padding: 8px;">
           <option value="">All Actions</option>
-          <option value="Report Approved" {{ request('action') == 'Report Approved' ? 'selected' : '' }}>Report Approved</option>
-          <option value="Report Rejected" {{ request('action') == 'Report Rejected' ? 'selected' : '' }}>Report Rejected</option>
-          <option value="Status Updated" {{ request('action') == 'Status Updated' ? 'selected' : '' }}>Status Updated</option>
-          <option value="Assignment Updated" {{ request('action') == 'Assignment Updated' ? 'selected' : '' }}>Assignment Updated</option>
-          <option value="Report Updated" {{ request('action') == 'Report Updated' ? 'selected' : '' }}>Report Updated</option>
+          @foreach(($actions ?? collect()) as $action)
+            <option value="{{ $action }}" {{ request('action') == $action ? 'selected' : '' }}>{{ $action }}</option>
+          @endforeach
         </select>
       </div>
+
+      <div class="form-group">
+        <label for="status">Report Status:</label>
+        <select name="status" id="status" style="width: 100%; padding: 8px;">
+          <option value="">All Statuses</option>
+          @foreach(($statuses ?? []) as $status)
+            <option value="{{ $status }}" {{ request('status') == $status ? 'selected' : '' }}>{{ $status }}</option>
+          @endforeach
+        </select>
+      </div>
+
+      @if($isTopManagement ?? false)
+      <div class="form-group">
+        <label for="department">Department:</label>
+        <select name="department" id="department" style="width: 100%; padding: 8px;">
+          <option value="">All Departments</option>
+          @foreach(($departments ?? collect()) as $department)
+            <option value="{{ $department->id }}" {{ (string) request('department') === (string) $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      @endif
 
       <!-- Date From -->
       <div class="form-group">
@@ -66,14 +90,14 @@
         <button type="submit" class="btn-filter" style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
           Apply Filters
         </button>
-        @if(request()->hasAny(['search', 'action', 'from', 'to']))
+        @if(request()->hasAny(['search', 'action', 'status', 'department', 'from', 'to']))
           <a href="{{ route('admin.activitylogs') }}" class="btn-clear" style="padding: 8px 16px; background-color: #6c757d; color: white; border-radius: 4px; text-decoration: none; display: inline-block;">
             Clear
           </a>
         @endif
       </div>
     </form>
-  </section>
+  </div>
 
   <!-- Activity Logs Table -->
   <section id="activity-logs">
@@ -123,10 +147,6 @@
                   <a href="{{ route('admin.reports.show', $activity->report_id) }}" style="color: #007bff; text-decoration: none;">
                     #{{ $activity->report_id }}
                   </a>
-                  @if($activity->report->title)
-                    <br>
-                    <small style="color: #666;">{{ Str::limit($activity->report->title, 30) }}</small>
-                  @endif
                 @else
                   <span style="color: #999;">N/A</span>
                 @endif

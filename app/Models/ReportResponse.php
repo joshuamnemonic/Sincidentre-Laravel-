@@ -18,6 +18,8 @@ class ReportResponse extends Model
         'target_date',
         'status',
         'remarks',
+        'response_type',
+        'attachment_path',
     ];
 
     protected $casts = [

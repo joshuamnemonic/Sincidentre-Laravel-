@@ -11,15 +11,69 @@ use Illuminate\Support\Facades\Auth;
 
 class UserManagementController extends Controller
 {
+    private function departmentShortName(?Department $department): string
+    {
+        $name = trim((string) ($department->name ?? ''));
+        if ($name === '') {
+            return 'Department';
+        }
+
+        $normalized = strtolower($name);
+        $knownShortNames = [
+            'college of teacher education' => 'CoT',
+            'college of education' => 'CoED',
+            'college of hospitality and tourism management' => 'CoHTM',
+        ];
+
+        if (isset($knownShortNames[$normalized])) {
+            return $knownShortNames[$normalized];
+        }
+
+        preg_match_all('/[A-Za-z]+/', $name, $matches);
+        $words = $matches[0] ?? [];
+        if (empty($words)) {
+            return $name;
+        }
+
+        $acronym = '';
+        foreach ($words as $word) {
+            $firstChar = strtoupper(substr($word, 0, 1));
+            if ($firstChar !== '') {
+                $acronym .= $firstChar;
+            }
+        }
+
+        return $acronym !== '' ? $acronym : $name;
+    }
+
+    private function baseManageableUsersQuery(User $admin)
+    {
+        $query = User::query()
+            ->where('is_department_student_discipline_officer', 0)
+            ->where('is_top_management', 0);
+
+        if (!(bool) $admin->is_top_management) {
+            $query->where('department_id', $admin->department_id);
+        }
+
+        return $query;
+    }
+
+    private function findManageableUserOrFail(int $id, User $admin): User
+    {
+        return $this->baseManageableUsersQuery($admin)->findOrFail($id);
+    }
+
     /**
      * Display a listing of users
      */
     public function index(Request $request)
     {
-        $query = User::with(['department'])
+        $admin = Auth::user();
+        $query = $this->baseManageableUsersQuery($admin)
+            ->with(['department'])
             ->withCount('reports')
-            ->where('is_department_student_discipline_officer', 0)
-            ->where('is_top_management', 0); // Only show regular users
+            ->latest();
 
         // Search filter
         if ($request->filled('search')) {
@@ -36,21 +90,29 @@ class UserManagementController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Department filter
-        if ($request->filled('department')) {
+        // Department filter remains available for Top Management only.
+        if ((bool) $admin->is_top_management && $request->filled('department')) {
             $query->where('department_id', $request->department);
         }
 
-        $users = $query->orderBy('created_at', 'desc')->paginate(15);
+        $users = $query->paginate(15);
 
         // Statistics
-        $totalUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->count();
-        $activeUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'active')->count();
-        $suspendedUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'suspended')->count();
-        $deactivatedUsers = User::where('is_department_student_discipline_officer', 0)->where('is_top_management', 0)->where('status', 'deactivated')->count();
+        $statsQuery = $this->baseManageableUsersQuery($admin);
+        $totalUsers = (clone $statsQuery)->count();
+        $activeUsers = (clone $statsQuery)->where('status', 'active')->count();
+        $suspendedUsers = (clone $statsQuery)->where('status', 'suspended')->count();
+        $deactivatedUsers = (clone $statsQuery)->where('status', 'deactivated')->count();
+
+        $currentDepartment = $admin->department;
+        $departmentShortName = $this->departmentShortName($currentDepartment);
+        $totalUsersTitle = (bool) $admin->is_top_management
+            ? 'Total Users'
+            : 'TOTAL USERS IN ' . $departmentShortName;
 
         // Get all departments for filter
         $departments = Department::orderBy('name')->get();
+        $canFilterDepartment = (bool) $admin->is_top_management;
 
         return view('admin.users', compact(
             'users', 
@@ -58,7 +120,9 @@ class UserManagementController extends Controller
             'activeUsers', 
             'suspendedUsers', 
             'deactivatedUsers',
-            'departments'
+            'departments',
+            'canFilterDepartment',
+            'totalUsersTitle'
         ));
     }
 
@@ -67,8 +131,8 @@ class UserManagementController extends Controller
      */
     public function show($id)
     {
-        $user = User::with(['department', 'reports.category', 'suspendedBy'])
-            ->findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin)->load(['department', 'reports.category', 'suspendedBy']);
 
         return view('admin.usershow', compact('user'));
     }
@@ -78,7 +142,8 @@ class UserManagementController extends Controller
      */
     public function edit($id)
     {
-        $user = User::findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin);
         
         // Prevent editing department student discipline officer accounts
         if ($user->is_department_student_discipline_officer || $user->is_top_management) {
@@ -97,7 +162,8 @@ class UserManagementController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin);
 
         // Prevent editing department student discipline officer accounts
         if ($user->is_department_student_discipline_officer || $user->is_top_management) {
@@ -110,9 +176,13 @@ class UserManagementController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => ((bool) $admin->is_top_management ? 'required' : 'nullable') . '|exists:departments,id',
             'phone' => 'nullable|string|max:20',
         ]);
+
+        if (!(bool) $admin->is_top_management) {
+            $validated['department_id'] = $admin->department_id;
+        }
 
         $user->update($validated);
 
@@ -134,7 +204,8 @@ class UserManagementController extends Controller
      */
     public function suspend(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin);
 
         // Prevent suspending department student discipline officer accounts
         if ($user->is_department_student_discipline_officer || $user->is_top_management) {
@@ -179,7 +250,8 @@ class UserManagementController extends Controller
      */
     public function activate($id)
     {
-        $user = User::findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin);
 
         $oldStatus = $user->status;
 
@@ -210,7 +282,8 @@ class UserManagementController extends Controller
      */
     public function deactivate(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $admin = Auth::user();
+        $user = $this->findManageableUserOrFail((int) $id, $admin);
 
         // Prevent deactivating department student discipline officer accounts
         if ($user->is_department_student_discipline_officer || $user->is_top_management) {

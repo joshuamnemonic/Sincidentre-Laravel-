@@ -15,27 +15,46 @@ class AdminDashboardController extends Controller
 
         $baseQuery = Report::query();
         if ($admin->is_top_management) {
-            $baseQuery->whereHas('category', function ($query) {
-                $query->whereIn('classification', ['Major', 'Grave']);
+            $positionCode = trim((string) ($admin->routing_position_code ?? ''));
+            $fullName = strtolower(trim((string) (($admin->first_name ?? '') . ' ' . ($admin->last_name ?? ''))));
+
+            $baseQuery->where(function ($query) use ($positionCode, $fullName) {
+                if ($positionCode !== '') {
+                    $query->where('assigned_position_code', $positionCode);
+                }
+
+                if ($fullName !== '') {
+                    if ($positionCode !== '') {
+                        $query->orWhereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    } else {
+                        $query->whereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    }
+                }
+
+                if ($positionCode === '' && $fullName === '') {
+                    $query->whereRaw('1 = 0');
+                }
             });
         } else {
             $baseQuery->whereHas('user', function($query) use ($departmentId) {
                 $query->where('department_id', $departmentId);
+            })->whereHas('category', function ($query) {
+                $query->whereNotIn('classification', ['Major', 'Grave']);
             });
         }
 
         return view('admin.admindashboard', [
             'totalReports' => (clone $baseQuery)->count(),
 
-            'pendingReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['pending'])->count(),
+            'pendingReports' => (clone $baseQuery)->where('status', Report::STATUS_PENDING)->count(),
 
-            'underReview' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['under review'])->count(),
+            'underReview' => (clone $baseQuery)->where('status', Report::STATUS_UNDER_REVIEW)->count(),
 
-            'resolvedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['resolved'])->count(),
+            'resolvedReports' => (clone $baseQuery)->where('status', Report::STATUS_RESOLVED)->count(),
 
-            'approvedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['approved'])->count(),
+            'approvedReports' => (clone $baseQuery)->where('status', Report::STATUS_APPROVED)->count(),
 
-            'rejectedReports' => (clone $baseQuery)->whereRaw('LOWER(status) = ?', ['rejected'])->count(),
+            'rejectedReports' => (clone $baseQuery)->where('status', Report::STATUS_REJECTED)->count(),
 
             'recentReports' => (clone $baseQuery)
                 ->with(['user', 'category'])

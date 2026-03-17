@@ -21,8 +21,7 @@
     <!-- Report Header -->
     <div class="report-header">
         <div>
-            <h2 style="margin: 0;">{{ $report->title }}</h2>
-            <p style="color: #666; margin: 5px 0;">Report #{{ $report->id }}</p>
+            <p class="report-id-line">Report #{{ $report->id }}</p>
         </div>
         <div>
             <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">
@@ -32,19 +31,14 @@
     </div>
 
     <!-- Main Report Information -->
-    <section class="report-details">
+    <section class="report-details handle-section">
         <h3>Incident Information</h3>
-        <table border="1" cellspacing="0" cellpadding="12" width="100%">
+        <table class="handle-report-table">
             <tr>
-                <th width="25%">Category</th>
+                <th>Category</th>
                 <td>
                     @if($report->category)
-                        <span class="category-badge">{{ $report->category->name }}</span>
-                        <div style="margin-top: 8px; color: #555;">
-                            {{ $report->category->main_category_code }} - {{ $report->category->main_category_name }}
-                            <br>
-                            Classification: <strong>{{ $report->category->classification }}</strong>
-                        </div>
+                        <span class="category-badge">{{ strtoupper($report->category->main_category_code) }} - {{ $report->category->main_category_name }} / {{ $report->category->name }}</span>
                     @else
                         <span class="category-badge">N/A</span>
                     @endif
@@ -56,25 +50,29 @@
             </tr>
             <tr>
                 <th>Date of Incident</th>
-                <td>{{ \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') }}</td>
+                <td>{{ $report->incident_date ? \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') : 'N/A' }}</td>
             </tr>
             <tr>
                 <th>Time of Incident</th>
-                <td>{{ \Carbon\Carbon::parse($report->incident_time)->format('h:i A') }}</td>
+                <td>{{ $report->incident_time ? \Carbon\Carbon::parse($report->incident_time)->format('h:i A') : 'N/A' }}</td>
             </tr>
             <tr>
                 <th>Location</th>
-                <td>{{ $report->location }}</td>
+                <td>{{ $report->location ?: 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Person Involvement</th>
+                <td>{{ $report->person_involvement ? ucfirst($report->person_involvement) : 'N/A' }}</td>
             </tr>
         </table>
     </section>
 
     <!-- Reporter Information -->
-    <section class="reporter-info">
+    <section class="reporter-info handle-section">
         <h3>Reporter Information</h3>
-        <table border="1" cellspacing="0" cellpadding="12" width="100%">
+        <table class="handle-report-table">
             <tr>
-                <th width="25%">Name</th>
+                <th>Name</th>
                 <td>{{ $report->user->first_name ?? 'Unknown' }} {{ $report->user->last_name ?? '' }}</td>
             </tr>
             <tr>
@@ -88,7 +86,7 @@
             <tr>
                 <th>Submitted At</th>
                 <td>
-                    {{ $report->created_at->format('F d, Y h:i A') }}
+                    {{ $report->created_at->format('F d, Y') }}
                     <small style="color: #999;">({{ $report->created_at->diffForHumans() }})</small>
                 </td>
             </tr>
@@ -96,13 +94,13 @@
     </section>
 
     <!-- Evidence Section -->
-    <section class="evidence-section">
+    <section class="evidence-section handle-section">
         <h3>Evidence & Attachments</h3>
         @if($report->evidence)
             @php
                 $evidences = is_array($report->evidence) ? $report->evidence : json_decode($report->evidence, true);
             @endphp
-            
+
             @if(is_array($evidences) && count($evidences) > 0)
                 <div class="evidence-grid">
                     @foreach($evidences as $index => $file)
@@ -112,8 +110,8 @@
 
                         @if(in_array(strtolower($extension), ['jpg','jpeg','png','gif','webp']))
                             <div class="evidence-item">
-                                <img src="{{ asset('storage/' . $file) }}" 
-                                     alt="Evidence {{ $index + 1 }}" 
+                                <img src="{{ asset('storage/' . $file) }}"
+                                     alt="Evidence {{ $index + 1 }}"
                                      style="max-width: 100%; border-radius: 8px; cursor: pointer;"
                                      onclick="openImageModal('{{ asset('storage/' . $file) }}')">
                                 <p style="text-align: center; margin-top: 5px; font-size: 12px; color: #666;">
@@ -132,14 +130,14 @@
                             </div>
                         @elseif(strtolower($extension) === 'pdf')
                             <div class="evidence-item">
-                                <a href="{{ asset('storage/' . $file) }}" target="_blank" class="btn-view">
-                                    📄 View PDF Document
+                                <a href="{{ asset('storage/' . $file) }}" target="_blank" class="btn-view report-action-btn">
+                                    View PDF Document
                                 </a>
                             </div>
                         @else
                             <div class="evidence-item">
-                                <a href="{{ asset('storage/' . $file) }}" download class="btn-view">
-                                    📂 Download {{ strtoupper($extension) }} File
+                                <a href="{{ asset('storage/' . $file) }}" download class="btn-view report-action-btn">
+                                    Download {{ strtoupper($extension) }} File
                                 </a>
                             </div>
                         @endif
@@ -157,103 +155,32 @@
         @endif
     </section>
 
-    <!-- Handling Information (if already handled) -->
-    @if($report->handled_by || $report->assigned_to || $report->remarks)
-    <section class="handling-info">
-        <h3>Handling Information</h3>
-        <table border="1" cellspacing="0" cellpadding="12" width="100%">
-            @if($report->assigned_to)
-            <tr>
-                <th width="25%">Assigned To</th>
-                <td>{{ $report->assigned_to }}</td>
-            </tr>
-            @endif
-            @if($report->department)
-            <tr>
-                <th>Assigned Department</th>
-                <td>{{ $report->department }}</td>
-            </tr>
-            @endif
-            @if($report->target_date)
-            <tr>
-                <th>Target Resolution Date</th>
-                <td>{{ \Carbon\Carbon::parse($report->target_date)->format('F d, Y') }}</td>
-            </tr>
-            @endif
-            @if($report->remarks)
-            <tr>
-                <th>Remarks</th>
-                <td>{{ $report->remarks }}</td>
-            </tr>
-            @endif
-            @if($report->rejection_reason)
-            <tr>
-                <th>Rejection Reason</th>
-                <td style="color: #dc3545;">{{ $report->rejection_reason }}</td>
-            </tr>
-            @endif
-        </table>
-    </section>
-    @endif
-
     <!-- Action Buttons -->
     <section class="action-buttons">
-        @if(in_array(strtolower($report->status), ['pending', 'under review']))
+        @if($report->escalated_to_top_management)
+            <div class="alert alert-info">
+                <strong>Escalated Report:</strong> This report is view-only in this section and cannot be handled here.
+            </div>
+        @elseif(in_array(strtolower($report->status), ['pending', 'under review']))
             <form action="{{ route('admin.reports.approve', $report->id) }}" method="POST" style="display:inline-block;">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="btn-approve" onclick="return confirm('Are you sure you want to approve this report?')">
-                    ✅ Approve Report
+                <button type="submit" class="btn-approve report-action-btn" onclick="return confirm('Are you sure you want to approve this report?')">
+                    Approve Report
                 </button>
             </form>
 
-            <button type="button" class="btn-reject" onclick="openRejectModal()">
-                ❌ Reject Report
+            <button type="button" class="btn-reject report-action-btn" onclick="openRejectModal()">
+                Reject Report
             </button>
-        @elseif(strtolower($report->status) === 'approved')
-            <a href="{{ route('admin.handlereports.show', $report->id) }}" class="btn-approve">
-                🔧 Handle Report
-            </a>
         @else
             <div class="alert alert-info">
                 <strong>Status:</strong> This report has been {{ $report->status }}.
             </div>
         @endif
 
-        <a href="{{ route('admin.reports') }}" class="btn-back">⬅ Back to Pending Queue</a>
+        <a href="{{ route('admin.reports') }}" class="btn btn-secondary report-action-btn">Back to New Reports</a>
     </section>
-
-    <!-- Activity Log (if available) -->
-    @if(isset($activities) && $activities->count() > 0)
-    <section class="activity-log">
-        <h3>Activity History</h3>
-        <div class="activity-list">
-            @foreach($activities as $activity)
-                <div class="activity-item">
-                    <div class="activity-icon">📝</div>
-                    <div class="activity-details">
-                        <strong>{{ $activity->action }}</strong>
-                        @if($activity->performedBy)
-                            <span style="color: #666;"> by {{ $activity->performedBy->first_name }} {{ $activity->performedBy->last_name }}</span>
-                        @endif
-                        @if($activity->old_status && $activity->new_status)
-                            <p style="margin: 5px 0;">
-                                Status changed from 
-                                <span class="status {{ strtolower(str_replace(' ', '-', $activity->old_status)) }}">{{ $activity->old_status }}</span>
-                                to 
-                                <span class="status {{ strtolower(str_replace(' ', '-', $activity->new_status)) }}">{{ $activity->new_status }}</span>
-                            </p>
-                        @endif
-                        @if($activity->remarks)
-                            <p style="margin: 5px 0; color: #666;">{{ $activity->remarks }}</p>
-                        @endif
-                        <small style="color: #999;">{{ $activity->created_at->format('M d, Y h:i A') }} ({{ $activity->created_at->diffForHumans() }})</small>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </section>
-    @endif
 
     <!-- Reject Modal -->
     <div id="rejectModal" class="modal">
@@ -266,8 +193,8 @@
                 @csrf
                 @method('PATCH')
                 <div class="form-group">
-                    <label><strong>Report Title:</strong></label>
-                    <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;">{{ $report->title }}</p>
+                    <label><strong>Report ID:</strong></label>
+                    <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;">#{{ $report->id }}</p>
                 </div>
                 <div class="form-group">
                     <label for="rejection_reason">Reason for Rejection *</label>
@@ -281,7 +208,7 @@
                     <small style="color: #666;">Minimum 10 characters required</small>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" onclick="closeRejectModal()" class="btn-cancel">Cancel</button>
+                    <button type="button" onclick="closeRejectModal()" class="btn-secondary">Cancel</button>
                     <button type="submit" class="btn-reject" onclick="return confirm('Are you sure you want to reject this report?')">
                         Reject Report
                     </button>
@@ -298,6 +225,31 @@
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+    .report-id-line {
+        margin: 5px 0;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 700;
+    }
+
+    .category-meta {
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .category-meta strong {
+        color: #ffffff;
+    }
+
+    .report-action-btn {
+        min-width: 180px;
+        justify-content: center;
+        text-align: center;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>

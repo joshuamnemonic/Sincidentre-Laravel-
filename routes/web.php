@@ -35,7 +35,7 @@ Route::get('/user/dashboard', [DashboardController::class, 'index'])
 // --------------------
 // ADMIN DASHBOARD & MANAGEMENT
 // --------------------
-Route::middleware(['auth', 'is_department_student_discipline_officer'])->group(function () {
+Route::middleware(['auth', 'is_department_student_discipline_officer', 'pending_handling_response'])->group(function () {
     
     // Department Student Discipline Officer Dashboard
     Route::get('/admin/admindashboard', [AdminDashboardController::class, 'index'])
@@ -81,6 +81,38 @@ Route::prefix('admin')->group(function () {
         [HandleReportsController::class, 'show']
     )->name('admin.handlereports.show');
 
+    Route::post('/handle-reports/{id}/schedule-hearing',
+        [HandleReportsController::class, 'scheduleHearing']
+    )->name('admin.handlereports.schedule-hearing');
+
+    Route::post('/handle-reports/{id}/notify-respondent',
+        [HandleReportsController::class, 'notifyRespondent']
+    )->name('admin.handlereports.notify-respondent');
+
+    Route::get('/handle-reports/{id}/print-call-slip',
+        [HandleReportsController::class, 'printCallSlip']
+    )->name('admin.handlereports.print-call-slip');
+
+    Route::post('/handle-reports/{id}/issue-reprimand',
+        [HandleReportsController::class, 'issueReprimand']
+    )->name('admin.handlereports.issue-reprimand');
+
+    Route::get('/handle-reports/{id}/print-reprimand',
+        [HandleReportsController::class, 'printReprimand']
+    )->name('admin.handlereports.print-reprimand');
+
+    Route::post('/handle-reports/{id}/issue-suspension',
+        [HandleReportsController::class, 'issueSuspension']
+    )->name('admin.handlereports.issue-suspension');
+
+    Route::post('/handle-reports/{id}/escalate-top-management',
+        [HandleReportsController::class, 'escalateToTopManagement']
+    )->name('admin.handlereports.escalate-top-management');
+
+    Route::get('/handle-reports/{id}/print-suspension',
+        [HandleReportsController::class, 'printSuspension']
+    )->name('admin.handlereports.print-suspension');
+
     Route::put('/handle-reports/{id}/update', 
         [HandleReportsController::class, 'update']
     )->name('admin.handlereports.update');
@@ -94,10 +126,17 @@ Route::prefix('admin')->group(function () {
         [HandleReportsController::class, 'export']
     )->name('admin.handlereports.export');
 });
+
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/reports/{id}/acknowledge-reprimand', [HandleReportsController::class, 'acknowledgeReprimand'])
+        ->name('reports.acknowledge-reprimand');
+    Route::post('/reports/{report}/confirm-hearing-notice', [HandleReportsController::class, 'confirmHearingNotice'])->name('reports.confirmHearingNotice');
 });
 
 // CATEGORY MANAGEMENT
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_department_student_discipline_officer'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'is_top_management', 'pending_handling_response'])->group(function () {
     Route::resource('categories', CategoryController::class);
 });
 
@@ -136,7 +175,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::get('/register', fn () => redirect()->route('sincregister'));
 
 // Logout
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth', 'pending_handling_response'])->name('logout');
 
 // Email verification prompt (users are verified via OTP during registration)
 Route::get('/email/verify', fn() => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
@@ -149,8 +188,8 @@ Route::post('/newreport', [ReportController::class, 'store'])->name('reports.sto
 Route::get('/myreports', [MyReportsController::class, 'index'])->name('myreports');
 Route::get('/reports/{id}', [ReportController::class, 'show'])->name('report.show');
 
-// DEPARTMENT MANAGEMENT (All Department Student Discipline Officers can manage departments)
-Route::prefix('admin')->middleware(['auth', 'is_department_student_discipline_officer'])->name('admin.')->group(function () {
+// DEPARTMENT MANAGEMENT (Top Management only)
+Route::prefix('admin')->middleware(['auth', 'is_top_management', 'pending_handling_response'])->name('admin.')->group(function () {
     Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
     Route::post('/departments', [DepartmentController::class, 'store'])->name('departments.store');
     Route::put('/departments/{id}', [DepartmentController::class, 'update'])->name('departments.update');
@@ -159,11 +198,11 @@ Route::prefix('admin')->middleware(['auth', 'is_department_student_discipline_of
 
 // Activity Logs
 Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])
-    ->middleware(['auth', 'is_department_student_discipline_officer'])
+    ->middleware(['auth', 'is_department_student_discipline_officer', 'pending_handling_response'])
     ->name('admin.activitylogs');
 
 // Analytics Routes
-Route::middleware(['auth', 'is_department_student_discipline_officer'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'is_department_student_discipline_officer', 'pending_handling_response'])->prefix('admin')->name('admin.')->group(function () {
     
     // Analytics Dashboard
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
@@ -174,7 +213,7 @@ Route::middleware(['auth', 'is_department_student_discipline_officer'])->prefix(
 });
 
 // Department Student Discipline Officer Profile Routes
-Route::middleware(['auth', 'is_department_student_discipline_officer'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'is_department_student_discipline_officer', 'pending_handling_response'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/profile', [AdminProfileController::class, 'show'])->name('profile');
     Route::patch('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
 });

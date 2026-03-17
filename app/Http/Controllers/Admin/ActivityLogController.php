@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Activity;
+use App\Models\Department;
 use Illuminate\Support\Facades\Auth;
 
 class ActivityLogController extends Controller
@@ -12,13 +13,44 @@ class ActivityLogController extends Controller
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
+        $query = Activity::with(['performedBy', 'admin', 'report.user.department', 'report.category']);
 
-        // Query activities only from reports in the same department
-        $query = Activity::with(['performedBy', 'admin', 'report.user'])
-            ->whereHas('report.user', function($q) use ($departmentId) {
+        if (!(bool) $admin->is_top_management) {
+            $departmentId = $admin->department_id;
+            $query->whereHas('report.user', function($q) use ($departmentId) {
+                $q->where('department_id', $departmentId);
+            })->whereHas('report.category', function ($q) {
+                $q->whereNotIn('classification', ['Major', 'Grave']);
+            });
+        } else {
+            $positionCode = trim((string) ($admin->routing_position_code ?? ''));
+            $fullName = strtolower(trim((string) (($admin->first_name ?? '') . ' ' . ($admin->last_name ?? ''))));
+
+            $query->whereHas('report', function ($q) use ($positionCode, $fullName) {
+                if ($positionCode !== '') {
+                    $q->where('assigned_position_code', $positionCode);
+                }
+
+                if ($fullName !== '') {
+                    if ($positionCode !== '') {
+                        $q->orWhereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    } else {
+                        $q->whereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                    }
+                }
+
+                if ($positionCode === '' && $fullName === '') {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+        }
+
+        if ((bool) $admin->is_top_management && $request->filled('department')) {
+            $departmentId = (int) $request->department;
+            $query->whereHas('report.user', function($q) use ($departmentId) {
                 $q->where('department_id', $departmentId);
             });
+        }
 
         // FILTER: Search
         if ($request->filled('search')) {
@@ -43,6 +75,13 @@ class ActivityLogController extends Controller
             $query->where('action', $request->action);
         }
 
+        // FILTER: Current report status
+        if ($request->filled('status')) {
+            $query->whereHas('report', function ($q) use ($request) {
+                $q->whereRaw('LOWER(status) = ?', [strtolower((string) $request->status)]);
+            });
+        }
+
         // FILTER: Date range
         if ($request->filled('from') && $request->filled('to')) {
             $query->whereBetween('created_at', [
@@ -58,6 +97,22 @@ class ActivityLogController extends Controller
         // Get paginated activities
         $activities = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        return view('admin.activitylogs', compact('activities'));
+        $actions = Activity::query()
+            ->select('action')
+            ->whereNotNull('action')
+            ->where('action', '!=', '')
+            ->distinct()
+            ->orderBy('action')
+            ->pluck('action');
+
+        $departments = (bool) $admin->is_top_management
+            ? Department::query()->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        $statuses = ['Pending', 'Approved', 'Rejected', 'Under Review', 'Resolved'];
+
+        $isTopManagement = (bool) $admin->is_top_management;
+
+        return view('admin.activitylogs', compact('activities', 'actions', 'departments', 'statuses', 'isTopManagement'));
     }
 }

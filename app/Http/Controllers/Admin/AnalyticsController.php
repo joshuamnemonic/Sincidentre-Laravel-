@@ -37,7 +37,7 @@ class AnalyticsController extends Controller
             ->count();
 
         // Reports in previous period (for comparison)
-        $previousPeriodStart = $dateRange['start']->copy()->sub($dateRange['start']->diffInDays($dateRange['end']), 'days');
+        $previousPeriodStart = $dateRange['start']->copy()->subDays($dateRange['start']->diffInDays($dateRange['end']));
         $previousPeriodReports = (clone $baseQuery)
             ->whereBetween('created_at', [$previousPeriodStart, $dateRange['start']])
             ->count();
@@ -51,7 +51,7 @@ class AnalyticsController extends Controller
         $avgResponseTime = $this->getAverageResponseTime($departmentId);
 
         // Resolution rate
-        $resolvedCount = (clone $baseQuery)->where('status', 'Resolved')->count();
+        $resolvedCount = (clone $baseQuery)->where('status', Report::STATUS_RESOLVED)->count();
         $resolutionRate = $totalReports > 0 ? round(($resolvedCount / $totalReports) * 100, 1) : 0;
 
         // 🚨 ALERTS - Recurring Incidents Detection
@@ -224,7 +224,7 @@ class AnalyticsController extends Controller
             ->groupBy('category_id')
             ->pluck('count', 'category_id');
 
-        $previousPeriodStart = $dateRange['start']->copy()->sub($dateRange['start']->diffInDays($dateRange['end']), 'days');
+        $previousPeriodStart = $dateRange['start']->copy()->subDays($dateRange['start']->diffInDays($dateRange['end']));
         $previousCategoryCounts = Report::select('category_id', DB::raw('COUNT(*) as count'))
             ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
             ->whereBetween('created_at', [$previousPeriodStart, $dateRange['start']])
@@ -252,7 +252,11 @@ class AnalyticsController extends Controller
 
         // 4. Overdue reports alert
         $overdueCount = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-            ->whereIn('status', ['Pending', 'Under Review', 'Approved'])
+            ->whereIn('status', [
+                Report::STATUS_PENDING,
+                Report::STATUS_UNDER_REVIEW,
+                Report::STATUS_APPROVED,
+            ])
             ->where('created_at', '<', Carbon::now()->subDays(3))
             ->count();
 
@@ -323,7 +327,7 @@ class AnalyticsController extends Controller
             ->get();
 
         return [
-            'labels' => $statuses->pluck('status')->toArray(),
+            'labels' => $statuses->pluck('status')->map(fn($status) => Report::labelForStatus($status))->toArray(),
             'data' => $statuses->pluck('count')->toArray()
         ];
     }
@@ -394,7 +398,7 @@ class AnalyticsController extends Controller
     private function getAverageTimeToApprove($departmentId)
     {
         $approvedReports = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-            ->where('status', 'Approved')
+            ->where('status', Report::STATUS_APPROVED)
             ->get();
 
         if ($approvedReports->isEmpty()) {
@@ -422,7 +426,7 @@ class AnalyticsController extends Controller
     private function getAverageTimeToResolve($departmentId)
     {
         $resolvedReports = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-            ->where('status', 'Resolved')
+            ->where('status', Report::STATUS_RESOLVED)
             ->get();
 
         if ($resolvedReports->isEmpty()) {
@@ -434,7 +438,7 @@ class AnalyticsController extends Controller
 
         foreach ($resolvedReports as $report) {
             $resolutionActivity = Activity::where('report_id', $report->id)
-                ->where('new_status', 'Resolved')
+                ->where('new_status', Report::STATUS_RESOLVED)
                 ->first();
 
             if ($resolutionActivity) {
@@ -450,7 +454,11 @@ class AnalyticsController extends Controller
     private function getOverdueReports($departmentId)
     {
         return Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
-            ->whereIn('status', ['Pending', 'Under Review', 'Approved'])
+            ->whereIn('status', [
+                Report::STATUS_PENDING,
+                Report::STATUS_UNDER_REVIEW,
+                Report::STATUS_APPROVED,
+            ])
             ->where('created_at', '<', Carbon::now()->subDays(3))
             ->count();
     }
@@ -517,7 +525,6 @@ class AnalyticsController extends Controller
             // Headers
             fputcsv($file, [
                 'Report ID',
-                'Title',
                 'Category',
                 'Reporter',
                 'Location',
@@ -530,13 +537,14 @@ class AnalyticsController extends Controller
             foreach ($reports as $report) {
                 fputcsv($file, [
                     $report->id,
-                    $report->title,
                     $report->category->name ?? 'N/A',
                     ($report->user->first_name ?? '') . ' ' . ($report->user->last_name ?? ''),
                     $report->location ?? 'N/A',
-                    $report->status,
+                    Report::labelForStatus($report->status),
                     $report->created_at->format('Y-m-d H:i:s'),
-                    $report->status === 'Resolved' ? $report->updated_at->format('Y-m-d H:i:s') : 'N/A'
+                    Report::normalizeStatus($report->status) === Report::STATUS_RESOLVED
+                        ? $report->updated_at->format('Y-m-d H:i:s')
+                        : 'N/A'
                 ]);
             }
 
@@ -556,7 +564,7 @@ class AnalyticsController extends Controller
         $content .= "Total Reports: " . $reports->count() . "\n\n";
         
         foreach ($reports as $report) {
-            $content .= "#{$report->id} - {$report->title} - {$report->status}\n";
+            $content .= "#{$report->id} - " . Report::labelForStatus($report->status) . "\n";
         }
 
         return response($content, 200, [

@@ -35,11 +35,16 @@
                         <option value="E">E - Administrative and General Violations</option>
                         <option value="F">F - Offenses Against Public Morals</option>
                         <option value="G">G - Technical and Facility Issues</option>
+                        <option value="custom">Other (Add New Main Category)</option>
                     </select>
+                </div>
+                <div class="form-group" id="customMainCodeWrapper" style="display:none;">
+                    <label for="customMainCategoryCode">Custom Main Category Code *</label>
+                    <input type="text" id="customMainCategoryCode" name="customMainCategoryCode" maxlength="1" placeholder="e.g., H">
                 </div>
                 <div class="form-group">
                     <label for="mainCategoryName">Main Category Name *</label>
-                    <input type="text" id="mainCategoryName" name="mainCategoryName" readonly required>
+                    <input type="text" id="mainCategoryName" name="mainCategoryName" required>
                 </div>
                 <div class="form-group">
                     <label for="categoryName">Category Name *</label>
@@ -152,7 +157,25 @@
 
     document.getElementById('mainCategoryCode').addEventListener('change', function () {
         const value = this.value;
-        document.getElementById('mainCategoryName').value = mainCategoryMap[value] || '';
+        const mainCategoryNameInput = document.getElementById('mainCategoryName');
+        const customMainCodeWrapper = document.getElementById('customMainCodeWrapper');
+        const customMainCodeInput = document.getElementById('customMainCategoryCode');
+
+        if (value === 'custom') {
+            customMainCodeWrapper.style.display = 'block';
+            customMainCodeInput.required = true;
+            mainCategoryNameInput.value = '';
+            mainCategoryNameInput.readOnly = false;
+            mainCategoryNameInput.placeholder = 'Enter new main category name';
+            return;
+        }
+
+        customMainCodeWrapper.style.display = 'none';
+        customMainCodeInput.required = false;
+        customMainCodeInput.value = '';
+        mainCategoryNameInput.readOnly = false;
+        mainCategoryNameInput.placeholder = '';
+        mainCategoryNameInput.value = mainCategoryMap[value] || mainCategoryNameInput.value;
     });
 
     window.addEventListener('click', function(e) {
