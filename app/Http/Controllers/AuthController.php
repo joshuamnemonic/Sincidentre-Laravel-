@@ -274,6 +274,11 @@ class AuthController extends Controller
                 if ($user->suspended_until) {
                     $suspensionMessage = 'Your account is suspended until ' . $user->suspended_until->format('M d, Y h:i A') . '. Please contact the Department Student Discipline Officer if you need assistance.';
                 }
+
+                $suspensionReason = trim((string) ($user->suspension_reason ?? ''));
+                if ($suspensionReason !== '') {
+                    $suspensionMessage .= ' Reason: ' . $suspensionReason;
+                }
                 
                 return back()->withErrors([
                     'email' => $suspensionMessage
@@ -285,9 +290,21 @@ class AuthController extends Controller
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
+
+                $deactivationMessage = 'Your account has been deactivated. Please contact the Department Student Discipline Officer to reactivate your account.';
+                $deactivationCategory = trim((string) ($user->deactivation_category ?? ''));
+                $deactivationReason = trim((string) ($user->suspension_reason ?? ''));
+
+                if ($deactivationCategory !== '') {
+                    $deactivationMessage .= ' Category: ' . str_replace('_', ' ', ucfirst($deactivationCategory)) . '.';
+                }
+
+                if ($deactivationReason !== '') {
+                    $deactivationMessage .= ' Reason: ' . $deactivationReason;
+                }
                 
                 return back()->withErrors([
-                    'email' => 'Your account has been deactivated. Please contact the Department Student Discipline Officer to reactivate your account.'
+                    'email' => $deactivationMessage
                 ])->withInput($request->only('email'));
             }
 

@@ -3,11 +3,31 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Report;
+use App\Models\ReportResponse;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class AdminDashboardController extends Controller
 {
+    private function buildNextActionLabel(Report $report): string
+    {
+        $status = Report::normalizeStatus($report->status);
+
+        if ($status === Report::STATUS_APPROVED && !$report->hearing_date) {
+            return 'Schedule hearing (Form 2303).';
+        }
+
+        if ($report->hearing_date && !$report->reprimand_issued_at) {
+            return 'Continue post-hearing handling or issue Form 2304.';
+        }
+
+        if ($report->reprimand_issued_at && !$report->suspension_issued_at) {
+            return 'Monitor acknowledgment or proceed with Form 2305 if needed.';
+        }
+
+        return 'Open report to continue handling updates.';
+    }
+
     public function index()
     {
         $admin = Auth::user();
@@ -43,6 +63,28 @@ class AdminDashboardController extends Controller
             });
         }
 
+        $visibleReportIds = (clone $baseQuery)->pluck('id');
+
+        $lastManagedActiveResponse = ReportResponse::query()
+            ->where('dsdo_id', $admin->id)
+            ->whereIn('report_id', $visibleReportIds)
+            ->whereHas('report', function ($query) {
+                $query->whereIn('status', [Report::STATUS_APPROVED, Report::STATUS_UNDER_REVIEW]);
+            })
+            ->with(['report.user', 'report.category'])
+            ->orderByDesc('created_at')
+            ->first();
+
+        $lastManagedResponse = $lastManagedActiveResponse ?: ReportResponse::query()
+            ->where('dsdo_id', $admin->id)
+            ->whereIn('report_id', $visibleReportIds)
+            ->with(['report.user', 'report.category'])
+            ->orderByDesc('created_at')
+            ->first();
+
+        $lastManagedReport = $lastManagedResponse?->report;
+        $lastManagedNextAction = $lastManagedReport ? $this->buildNextActionLabel($lastManagedReport) : null;
+
         return view('admin.admindashboard', [
             'totalReports' => (clone $baseQuery)->count(),
 
@@ -67,6 +109,10 @@ class AdminDashboardController extends Controller
                 ->where('is_department_student_discipline_officer', 0)
                 ->where('is_top_management', 0)
                 ->count(),
+
+            'lastManagedReport' => $lastManagedReport,
+            'lastManagedResponse' => $lastManagedResponse,
+            'lastManagedNextAction' => $lastManagedNextAction,
         ]);
     }
 }

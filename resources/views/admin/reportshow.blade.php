@@ -193,13 +193,33 @@
         <h3>Section 2: Information About the Incident</h3>
         <table class="handle-report-table">
             <tr>
+                <th>Description</th>
+                <td>{{ $report->description ?: 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Date of Incident</th>
+                <td>{{ $report->incident_date ? \Carbon\Carbon::parse($report->incident_date)->format('F d, Y') : 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Time of Incident</th>
+                <td>{{ $report->incident_time ? \Carbon\Carbon::parse($report->incident_time)->format('h:i A') : 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Location</th>
+                <td>{{ $report->location ?: 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Please Specify</th>
+                <td>{{ $report->location_details ?: 'N/A' }}</td>
+            </tr>
+            <tr>
                 <th>Were There Any Witnesses?</th>
                 <td>{{ $report->has_witnesses ? 'Yes' : 'No' }}</td>
             </tr>
-            <tr>
-                <th>Witness Details</th>
-                <td>
-                    @if(is_array($report->witness_details) && count($report->witness_details) > 0)
+            @if($report->has_witnesses && is_array($report->witness_details) && count($report->witness_details) > 0)
+                <tr>
+                    <th>Witness Details</th>
+                    <td>
                         <ul>
                             @foreach($report->witness_details as $witness)
                                 <li>
@@ -212,11 +232,9 @@
                                 </li>
                             @endforeach
                         </ul>
-                    @else
-                        N/A
-                    @endif
-                </td>
-            </tr>
+                    </td>
+                </tr>
+            @endif
             <tr>
                 <th>Additional Incident Sheets</th>
                 <td>
@@ -336,11 +354,7 @@
 
     <!-- Action Buttons -->
     <section class="action-buttons">
-        @if($report->escalated_to_top_management)
-            <div class="alert alert-info">
-                <strong>Escalated Report:</strong> This report is view-only in this section and cannot be handled here.
-            </div>
-        @elseif(in_array(strtolower($report->status), ['pending', 'under review']))
+        @can('decide', $report)
             <form action="{{ route('admin.reports.approve', $report->id) }}" method="POST" style="display:inline-block;">
                 @csrf
                 @method('PATCH')
@@ -352,11 +366,21 @@
             <button type="button" class="btn-reject report-action-btn" onclick="openRejectModal()">
                 Reject Report
             </button>
+
+            @if($report->escalated_to_top_management)
+                <div class="alert alert-info" style="margin-top: 10px;">
+                    <strong>Escalated Report:</strong> This case has been escalated to Top Management.
+                </div>
+            @endif
         @else
             <div class="alert alert-info">
-                <strong>Status:</strong> This report has been {{ $report->status }}.
+                @if($report->escalated_to_top_management)
+                    <strong>Escalated Report:</strong> This report is pending Top Management decision.
+                @else
+                    <strong>Status:</strong> This report has been {{ $report->status }}.
+                @endif
             </div>
-        @endif
+        @endcan
 
         <a href="{{ route('admin.reports') }}" class="btn btn-secondary report-action-btn">Back to New Reports</a>
     </section>
@@ -373,7 +397,7 @@
                 @method('PATCH')
                 <div class="form-group">
                     <label><strong>Report ID:</strong></label>
-                    <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;">#{{ $report->id }}</p>
+                    <p style="background: #f5f5f5; color: #000000; padding: 10px; border-radius: 4px;">#{{ $report->id }}</p>
                 </div>
                 <div class="form-group">
                     <label for="rejection_reason">Reason for Rejection *</label>

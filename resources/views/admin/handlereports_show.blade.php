@@ -22,6 +22,46 @@
         $showStep1Panel = !$step1Done || $step1Errors;
         $showEscalationPanel = $step4Errors;
         $showGeneralResponsePanel = $generalResponseErrors;
+        $handlerDepartmentId = old('department_id', optional(Auth::user())->department_id);
+        $handlerDepartmentLabel = optional(optional(Auth::user())->department)->name
+            ?? (optional(Auth::user())->employee_office ?? 'N/A');
+        $resolvedResponses = collect($responses ?? [])->filter(function ($response) {
+            return \App\Models\Report::normalizeStatus($response->status ?? null) === \App\Models\Report::STATUS_RESOLVED;
+        });
+        $latestResolvedResponse = $resolvedResponses->sortByDesc('response_number')->first();
+        $resolutionType = 'Resolution recorded in handling response';
+        if ($report->suspension_issued_at || $report->suspension_document_path) {
+            $resolutionType = 'Resolved via Form 2305 (Suspension/Dismissal)';
+        } elseif ($report->reprimand_issued_at || $report->reprimand_document_path) {
+            $resolutionType = 'Resolved via Form 2304 (Written Reprimand)';
+        }
+        $latestResponse = collect($responses ?? [])->sortByDesc('response_number')->first();
+        $workflowStage = 'Initial handling review';
+
+        if ($report->suspension_issued_at) {
+            $workflowStage = 'Final action recorded (Form 2305)';
+        } elseif ($report->reprimand_issued_at) {
+            $workflowStage = 'Written reprimand recorded (Form 2304)';
+        } elseif ($step1Done) {
+            $workflowStage = 'Hearing scheduled / case under review';
+        } elseif ($currentStatus === \App\Models\Report::STATUS_APPROVED) {
+            $workflowStage = 'Approved and awaiting hearing schedule';
+        }
+
+        $nextRecommendedAction = 'Open relevant handling form and continue case updates.';
+        if (!$step1Done) {
+            $nextRecommendedAction = 'Schedule hearing (2303) or escalate/reassign immediately if needed.';
+        } elseif (!$isTopManagementUser && !$step2Done) {
+            $nextRecommendedAction = 'Record written reprimand (2304) or add additional handling response.';
+        } elseif ($isTopManagementUser && !$step3Done) {
+            $nextRecommendedAction = 'Record final disciplinary action via Form 2305 or add additional handling response.';
+        } elseif ($currentStatus === \App\Models\Report::STATUS_RESOLVED) {
+            $nextRecommendedAction = 'Case resolved. Review resolution details and response history.';
+        }
+
+        $availableActionsLabel = $isTopManagementUser
+            ? '2303, Additional Handling Response, 2305'
+            : '2303, Additional Handling Response, 2304, Escalation/Reassignment';
         $reporterConfirmed = \App\Models\Activity::where('report_id', $report->id)
             ->where('action', 'Reporter Hearing Notice Confirmed')
             ->exists();
@@ -42,6 +82,87 @@
         <div class="alert alert-danger">
             {{ session('error') }}
         </div>
+    @endif
+
+    <section class="handle-section workflow-summary">
+        <h2 class="handle-title-centered">Handling Workflow Summary</h2>
+        <table class="handle-report-table">
+            <tr>
+                <th>Current Stage</th>
+                <td>{{ $workflowStage }}</td>
+            </tr>
+            <tr>
+                <th>Last Action</th>
+                <td>
+                    @if($latestResponse)
+                        {{ $latestResponse->response_type ?? 'Handling Response' }}
+                        @if($latestResponse->created_at)
+                            · {{ $latestResponse->created_at->format('M d, Y h:i A') }}
+                        @endif
+                    @else
+                        No handling response recorded yet.
+                    @endif
+                </td>
+            </tr>
+            <tr>
+                <th>Next Recommended Action</th>
+                <td>{{ $nextRecommendedAction }}</td>
+            </tr>
+            <tr>
+                <th>Available Actions (Current Role)</th>
+                <td>{{ $availableActionsLabel }}</td>
+            </tr>
+        </table>
+    </section>
+
+    @if($currentStatus === \App\Models\Report::STATUS_RESOLVED)
+        <section class="handle-section">
+            <h2 class="handle-title-centered">Resolution Details</h2>
+            <table class="handle-report-table">
+                <tr>
+                    <th>Resolution Type</th>
+                    <td>{{ $resolutionType }}</td>
+                </tr>
+                <tr>
+                    <th>Resolved At</th>
+                    <td>
+                        @if($report->suspension_issued_at)
+                            {{ $report->suspension_issued_at->format('F d, Y h:i A') }}
+                        @elseif($report->reprimand_issued_at)
+                            {{ $report->reprimand_issued_at->format('F d, Y h:i A') }}
+                        @elseif($latestResolvedResponse?->created_at)
+                            {{ $latestResolvedResponse->created_at->format('F d, Y h:i A') }}
+                        @else
+                            N/A
+                        @endif
+                    </td>
+                </tr>
+                @if(!empty($report->disciplinary_action))
+                    <tr>
+                        <th>Disciplinary Action</th>
+                        <td>{{ $report->disciplinary_action }}</td>
+                    </tr>
+                @endif
+                @if(!empty($report->suspension_days))
+                    <tr>
+                        <th>Suspension Days</th>
+                        <td>{{ $report->suspension_days }}</td>
+                    </tr>
+                @endif
+                @if($report->suspension_effective_date)
+                    <tr>
+                        <th>Suspension Effective Date</th>
+                        <td>{{ $report->suspension_effective_date->format('F d, Y') }}</td>
+                    </tr>
+                @endif
+                @if(!empty($latestResolvedResponse?->remarks))
+                    <tr>
+                        <th>Resolution Remarks</th>
+                        <td>{{ $latestResolvedResponse->remarks }}</td>
+                    </tr>
+                @endif
+            </table>
+        </section>
     @endif
 
     <section id="report-details" class="handle-section">
@@ -76,22 +197,6 @@
             <tr>
                 <th>Date Submitted</th>
                 <td>{{ $report->submitted_at ? $report->submitted_at->format('F d, Y h:i A') : $report->created_at->format('F d, Y h:i A') }}</td>
-            </tr>
-            <tr>
-                <th>Incident Date</th>
-                <td>{{ $report->incident_date ? $report->incident_date->format('F d, Y') : 'N/A' }}</td>
-            </tr>
-            <tr>
-                <th>Incident Time</th>
-                <td>{{ $report->incident_time ? \Carbon\Carbon::parse($report->incident_time)->format('h:i A') : 'N/A' }}</td>
-            </tr>
-            <tr>
-                <th>Location</th>
-                <td>{{ $report->location ?? 'N/A' }}</td>
-            </tr>
-            <tr>
-                <th>Incident Description</th>
-                <td>{{ $report->description ?: 'N/A' }}</td>
             </tr>
             <tr>
                 <th>Person Involvement</th>
@@ -168,13 +273,33 @@
         <h3 class="handle-card-title handle-spacing-top handle-title-centered">Section 2: Information About the Incident</h3>
         <table class="handle-report-table handle-spacing-top">
             <tr>
+                <th>Incident Description</th>
+                <td>{{ $report->description ?: 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Incident Date</th>
+                <td>{{ $report->incident_date ? $report->incident_date->format('F d, Y') : 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Incident Time</th>
+                <td>{{ $report->incident_time ? \Carbon\Carbon::parse($report->incident_time)->format('h:i A') : 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Location</th>
+                <td>{{ $report->location ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Please Specify</th>
+                <td>{{ $report->location_details ?? 'N/A' }}</td>
+            </tr>
+            <tr>
                 <th>Were There Any Witnesses?</th>
                 <td>{{ $report->has_witnesses ? 'Yes' : 'No' }}</td>
             </tr>
-            <tr>
-                <th>Witness Details</th>
-                <td>
-                    @if(is_array($report->witness_details) && count($report->witness_details) > 0)
+            @if($report->has_witnesses && is_array($report->witness_details) && count($report->witness_details) > 0)
+                <tr>
+                    <th>Witness Details</th>
+                    <td>
                         <ul>
                             @foreach($report->witness_details as $witness)
                                 <li>
@@ -187,21 +312,17 @@
                                 </li>
                             @endforeach
                         </ul>
-                    @else
-                        N/A
-                    @endif
-                </td>
-            </tr>
-            <tr>
-                <th>Witness Attachment</th>
-                <td>
-                    @if($report->witness_attachment)
+                    </td>
+                </tr>
+            @endif
+            @if($report->has_witnesses && $report->witness_attachment)
+                <tr>
+                    <th>Witness Attachment</th>
+                    <td>
                         <a href="{{ asset('storage/' . $report->witness_attachment) }}" target="_blank">View Witness Attachment</a>
-                    @else
-                        N/A
-                    @endif
-                </td>
-            </tr>
+                    </td>
+                </tr>
+            @endif
             <tr>
                 <th>Additional Incident Sheets</th>
                 <td>
@@ -307,7 +428,7 @@
         @if($hasPersonInvolvement)
 
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 1</span>2303: Schedule Hearing and Notify Parties</h3>
+            <h3 class="handle-card-title handle-title-centered">2303: Schedule Hearing and Notify Parties</h3>
             <div class="handle-inline-actions handle-small-bottom-space">
                 <button type="button" class="btn-secondary" id="toggleStep1Btn" onclick="toggleSection('step1Panel', 'toggleStep1Btn', 'Show 2303 (Reschedule Hearing)', 'Hide 2303')">
                     {{ $showStep1Panel ? 'Hide 2303' : 'Show 2303 (Reschedule Hearing)' }}
@@ -333,12 +454,8 @@
                 </div>
                 <div class="handle-grid-3">
                     <div class="form-group handle-form-group">
-                        <label><strong>Step 1 Status</strong></label><br>
+                        <label><strong>Status</strong></label><br>
                         <input type="text" value="Under Review" class="readonly-field" readonly>
-                    </div>
-                    <div class="form-group handle-form-group">
-                        <label><strong>Target Date (Optional)</strong></label><br>
-                        <input type="date" name="step1_target_date" value="{{ old('step1_target_date') }}">
                     </div>
                     <div class="form-group handle-form-group">
                         <label><strong>Attachment (Optional)</strong></label><br>
@@ -363,15 +480,9 @@
             <p class="handle-meta-line"><strong>Involved party confirmation:</strong> {{ $involvedConfirmed ? 'Confirmed' : 'Pending confirmation' }}</p>
         </div>
 
-        @if(!$step1Done)
-            <div class="alert alert-warning">
-                Complete Step 1 first. Step 2 (Form 2304), Step 3 (Form 2305), and Step 4 (Escalation) will appear after Step 1 is saved.
-            </div>
-        @endif
-
         @if($step1Done)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip handle-step-chip-optional">Optional</span>Additional DSDO Handling Response (Non-Form 2303/2304/2305)</h3>
+            <h3 class="handle-card-title handle-title-centered">Additional Handling Response (Non-Form 2303/2304/2305)</h3>
             <p class="handle-meta-line">
                 If the case is still in progress after Form 2303, you can add another handling response here
                 without proceeding to Form 2304 yet.
@@ -381,9 +492,9 @@
                     type="button"
                     class="btn-secondary"
                     id="toggleGeneralResponseBtn"
-                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional DSDO Response', 'Hide Additional DSDO Response')"
+                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional Handling Response', 'Hide Additional Handling Response')"
                 >
-                    {{ $showGeneralResponsePanel ? 'Hide Additional DSDO Response' : 'Show Additional DSDO Response' }}
+                    {{ $showGeneralResponsePanel ? 'Hide Additional Handling Response' : 'Show Additional Handling Response' }}
                 </button>
             </div>
 
@@ -392,18 +503,12 @@
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="status" value="Under Review">
+                    <input type="hidden" name="department_id" value="{{ $handlerDepartmentId }}">
 
                     <div class="handle-grid-3">
                         <div class="form-group handle-form-group">
                             <label><strong>Department</strong></label><br>
-                            <select name="department_id" required>
-                                <option value="" disabled {{ old('department_id') ? '' : 'selected' }}>Select department</option>
-                                @foreach($departments as $department)
-                                    <option value="{{ $department->id }}" {{ (string) old('department_id', optional(Auth::user())->department_id) === (string) $department->id ? 'selected' : '' }}>
-                                        {{ $department->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <input type="text" value="{{ $handlerDepartmentLabel }}" class="readonly-field" readonly>
                         </div>
 
                         <div class="form-group handle-form-group">
@@ -435,25 +540,26 @@
                     @endif
 
                     <div class="form-group handle-form-group">
-                        <label><strong>DSDO Handling Response Remarks</strong></label><br>
+                        <label><strong>Handling Response Remarks</strong></label><br>
                         <textarea name="remarks" rows="3" placeholder="Add progress update or follow-up actions while case remains under review" required>{{ old('remarks') }}</textarea>
                     </div>
 
                     <div class="handle-inline-actions">
-                        <button type="submit">Record Additional DSDO Response</button>
+                        <button type="submit">Record Additional Handling Response</button>
                     </div>
                 </form>
             </div>
         </div>
 
+        @if(!$isTopManagementUser)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 2</span>Form 2304: Written Reprimand</h3>
+            <h3 class="handle-card-title handle-title-centered">Form 2304: Written Reprimand</h3>
             <form id="issueReprimandForm" action="{{ route('admin.handlereports.issue-reprimand', $report->id) }}" method="POST" enctype="multipart/form-data" class="handle-form-block">
                 @csrf
                 <input type="hidden" name="step2_status" value="{{ \App\Models\Report::STATUS_RESOLVED }}">
                 <div class="handle-grid-3">
                     <div class="form-group handle-form-group">
-                        <label><strong>Step 2 Status</strong></label><br>
+                        <label><strong>Status</strong></label><br>
                         <input type="text" value="Resolved" class="readonly-field" readonly>
                     </div>
                     <div class="form-group handle-form-group">
@@ -481,10 +587,11 @@
                 <p class="handle-meta-line"><strong>Step 2 progress:</strong> Completed</p>
             @endif
         </div>
+        @endif
 
         @if($isTopManagementUser)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title"><span class="handle-step-chip">Step 3</span>Form 2305: Suspension or Dismissal</h3>
+            <h3 class="handle-card-title">Form 2305: Suspension or Dismissal</h3>
             <form id="issueSuspensionForm" action="{{ route('admin.handlereports.issue-suspension', $report->id) }}" method="POST" enctype="multipart/form-data" class="handle-grid-3">
                 @csrf
                 <div class="form-group handle-form-group">
@@ -503,7 +610,7 @@
                     <input type="date" name="suspension_effective_date" value="{{ old('suspension_effective_date', optional($report->suspension_effective_date)->format('Y-m-d')) }}" required>
                 </div>
                 <div class="form-group handle-form-group">
-                    <label><strong>Step 3 Status</strong></label><br>
+                    <label><strong>Status</strong></label><br>
                     <select name="step3_status" required>
                         <option value="{{ \App\Models\Report::STATUS_UNDER_REVIEW }}" {{ old('step3_status', \App\Models\Report::STATUS_RESOLVED) === \App\Models\Report::STATUS_UNDER_REVIEW ? 'selected' : '' }}>Under Review</option>
                         <option value="{{ \App\Models\Report::STATUS_RESOLVED }}" {{ old('step3_status', \App\Models\Report::STATUS_RESOLVED) === \App\Models\Report::STATUS_RESOLVED ? 'selected' : '' }}>Resolved</option>
@@ -535,9 +642,11 @@
         </div>
         @endif
 
+        @endif
+
         @if(!$isTopManagementUser)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 4</span>Escalation / Reassignment to Other Handler</h3>
+            <h3 class="handle-card-title handle-title-centered">Escalation / Reassignment to Other Handler</h3>
 
             @if($report->escalated_to_top_management)
                 <p class="handle-meta-line"><strong>Escalation status:</strong> Already escalated{{ $report->assigned_to ? ' and assigned to ' . $report->assigned_to : '' }}.</p>
@@ -576,7 +685,7 @@
                     </div>
                     <div class="handle-grid-3">
                         <div class="form-group handle-form-group">
-                            <label><strong>Step 4 Status</strong></label><br>
+                            <label><strong>Status</strong></label><br>
                             <input type="text" value="Under Review" class="readonly-field" readonly>
                         </div>
                         <div class="form-group handle-form-group">
@@ -602,22 +711,21 @@
         </div>
         @endif
         @endif
-        @endif
 
         @if($isNoPersonInvolved)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip handle-step-chip-optional">Optional</span>Additional DSDO Handling Response (Non-Form 2303/2304/2305)</h3>
+            <h3 class="handle-card-title handle-title-centered">Additional Handling Response (Non-Form 2303/2304/2305)</h3>
             <p class="handle-meta-line">
-                No person involved was selected for this report, so only this additional DSDO handling response is available.
+                No person involved was selected for this report, so only this additional handling response is available.
             </p>
             <div class="handle-inline-actions handle-small-bottom-space">
                 <button
                     type="button"
                     class="btn-secondary"
                     id="toggleGeneralResponseBtn"
-                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional DSDO Response', 'Hide Additional DSDO Response')"
+                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional Handling Response', 'Hide Additional Handling Response')"
                 >
-                    {{ $showGeneralResponsePanel ? 'Hide Additional DSDO Response' : 'Show Additional DSDO Response' }}
+                    {{ $showGeneralResponsePanel ? 'Hide Additional Handling Response' : 'Show Additional Handling Response' }}
                 </button>
             </div>
 
@@ -626,18 +734,12 @@
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="status" value="Under Review">
+                    <input type="hidden" name="department_id" value="{{ $handlerDepartmentId }}">
 
                     <div class="handle-grid-3">
                         <div class="form-group handle-form-group">
                             <label><strong>Department</strong></label><br>
-                            <select name="department_id" required>
-                                <option value="" disabled {{ old('department_id') ? '' : 'selected' }}>Select department</option>
-                                @foreach($departments as $department)
-                                    <option value="{{ $department->id }}" {{ (string) old('department_id', optional(Auth::user())->department_id) === (string) $department->id ? 'selected' : '' }}>
-                                        {{ $department->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <input type="text" value="{{ $handlerDepartmentLabel }}" class="readonly-field" readonly>
                         </div>
 
                         <div class="form-group handle-form-group">
@@ -669,12 +771,12 @@
                     @endif
 
                     <div class="form-group handle-form-group">
-                        <label><strong>DSDO Handling Response Remarks</strong></label><br>
+                        <label><strong>Handling Response Remarks</strong></label><br>
                         <textarea name="remarks" rows="3" placeholder="Add progress update or follow-up actions while case remains under review" required>{{ old('remarks') }}</textarea>
                     </div>
 
                     <div class="handle-inline-actions">
-                        <button type="submit">Record Additional DSDO Response</button>
+                        <button type="submit">Record Additional Handling Response</button>
                     </div>
                 </form>
             </div>
@@ -735,6 +837,10 @@
 
 @push('styles')
 <style>
+    .workflow-summary {
+        margin-bottom: 1rem;
+    }
+
     .field-time {
         min-width: 180px;
         letter-spacing: 0.02em;
@@ -743,11 +849,11 @@
 
     .field-time-enhanced {
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        background: rgba(18, 28, 44, 0.7);
-        color: #f5f7ff;
+        border: 1px solid rgba(17, 24, 39, 0.25);
+        background: #ffffff;
+        color: #111111;
         padding: 0.6rem 0.7rem;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
     }
 
     .file-input-enhanced {

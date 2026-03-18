@@ -30,7 +30,7 @@
                         <th>Person Involvement</th>
                         <th>Date</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th>View</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -60,22 +60,6 @@
                             <td>
                                 <div class="action-buttons reports-action-buttons">
                                     <a href="{{ route('admin.reports.show', $report->id) }}" class="btn btn-view report-action-btn">View</a>
-
-                                    @if(!Auth::user()->is_top_management && in_array($report->category->classification ?? '', ['Major', 'Grave']) && !$report->escalated_to_top_management)
-                                        <form method="POST" action="{{ route('admin.reports.escalate', $report->id) }}" class="inline-action-form">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="btn btn-secondary report-action-btn" onclick="return confirm('Escalate this report to Top Management?')">Escalate</button>
-                                        </form>
-                                    @endif
-                                    
-                                    <form method="POST" action="{{ route('admin.reports.approve', $report->id) }}" class="inline-action-form">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="btn btn-approve report-action-btn">Approve</button>
-                                    </form>
-
-                                    <button type="button" class="btn btn-reject report-action-btn" onclick="openRejectModal({{ $report->id }})">Reject</button>
                                 </div>
                             </td>
                         </tr>
@@ -89,41 +73,6 @@
         </div>
     </section>
 
-    @foreach ($reports as $report)
-        <div id="rejectModal{{ $report->id }}" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Reject Report #{{ $report->id }}</h3>
-                    <span class="close" onclick="closeRejectModal({{ $report->id }})">&times;</span>
-                </div>
-                <form method="POST" action="{{ route('admin.reports.reject', $report->id) }}">
-                    @csrf
-                    @method('PATCH')
-                    <div class="form-group">
-                        <label><strong>Report ID:</strong></label>
-                        <p>#{{ $report->id }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label><strong>Category:</strong></label>
-                        <p>{{ $report->category->name ?? 'N/A' }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="rejection_reason{{ $report->id }}">Reason for Rejection *</label>
-                        <textarea
-                            id="rejection_reason{{ $report->id }}"
-                            name="rejection_reason"
-                            rows="4"
-                            placeholder="Please provide a clear reason for rejecting this report..."
-                            required></textarea>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn-secondary" onclick="closeRejectModal({{ $report->id }})">Cancel</button>
-                        <button type="submit" class="btn-reject">Reject Report</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endforeach
 @endsection
 
 @push('styles')
@@ -139,7 +88,7 @@
 
     .reports-table th:last-child,
     .reports-table td:last-child {
-        min-width: 320px;
+        min-width: 140px;
     }
 
     .category-meta-text {
@@ -209,41 +158,6 @@
 
 @push('scripts')
 <script>
-    // Move all modals to document.body so they escape the transformed .dashboard container
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.modal').forEach(function(modal) {
-            document.body.appendChild(modal);
-        });
-    });
-
-    function openRejectModal(reportId) {
-        var modal = document.getElementById('rejectModal' + reportId);
-        if (!modal) return;
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeRejectModal(reportId) {
-        var modal = document.getElementById('rejectModal' + reportId);
-        if (!modal) return;
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-            document.body.style.overflow = '';
-        }
-    });
-
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            document.querySelectorAll('.modal').forEach(function(modal) {
-                modal.style.display = 'none';
-            });
-            document.body.style.overflow = '';
-        }
-    });
+    // Reserved for future New Reports page interactions.
 </script>
 @endpush

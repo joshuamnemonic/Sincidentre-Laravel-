@@ -45,66 +45,107 @@
         </a>
     </section>
 
-    @php
-        $priorityStatuses = [
-            \App\Models\Report::STATUS_PENDING,
-            \App\Models\Report::STATUS_UNDER_REVIEW,
-            \App\Models\Report::STATUS_REJECTED,
-        ];
+    <section class="continue-work-wrap">
+        <article class="continue-work-card">
+            <h2>Continue Last Managed Report</h2>
 
-        $priorityReports = $recentReports
-            ->filter(function ($report) use ($priorityStatuses) {
-                return in_array(\App\Models\Report::normalizeStatus($report->status), $priorityStatuses, true);
-            })
-            ->take(5);
-    @endphp
+            @if(!empty($lastManagedReport))
+                <p class="continue-work-primary">
+                    <strong>Report {{ $lastManagedReport->id }}</strong>
+                    <span class="continue-work-meta">
+                        {{ \App\Models\Report::labelForStatus($lastManagedReport->status) }}
+                        @if($lastManagedReport->category)
+                            · {{ strtoupper($lastManagedReport->category->main_category_code) }} - {{ $lastManagedReport->category->name }}
+                        @endif
+                    </span>
+                </p>
 
-    <section id="dashboard-focus" class="admin-focus">
-        <h2>Dashboard Focus</h2>
+                @if(!empty($lastManagedResponse))
+                    <p class="continue-work-line">
+                        <strong>Last action:</strong>
+                        {{ $lastManagedResponse->response_type ?? 'Handling Response' }}
+                        @if($lastManagedResponse->created_at)
+                            · {{ $lastManagedResponse->created_at->format('M d, Y h:i A') }}
+                        @endif
+                    </p>
+                @endif
 
-        <div class="focus-grid">
-            <article class="focus-card">
-                <h3>Priority Reports</h3>
-                <ul class="focus-list">
-                    @forelse($priorityReports as $report)
-                        <li class="focus-item">
-                            <div>
-                                <strong>Report {{ $report->id }}</strong>
-                                <span class="focus-meta">{{ $report->user->name ?? 'Unknown' }} · {{ optional($report->created_at)->format('M d, Y') }}</span>
-                            </div>
-                        </li>
-                    @empty
-                        <li class="focus-empty">No priority reports right now.</li>
-                    @endforelse
-                </ul>
-            </article>
+                @if(!empty($lastManagedNextAction))
+                    <p class="continue-work-line">
+                        <strong>Next action:</strong> {{ $lastManagedNextAction }}
+                    </p>
+                @endif
 
-            <article class="focus-card">
-                <h3>Recent Updates</h3>
-                <ul class="focus-list">
-                    @forelse($recentReports->take(5) as $report)
-                        <li class="focus-item">
-                            <div>
-                                <strong>Report {{ $report->id }}</strong>
-                                <span class="focus-meta">{{ \App\Models\Report::labelForStatus($report->status) }} · {{ optional($report->updated_at)->format('M d, Y') }}</span>
-                            </div>
-                        </li>
-                    @empty
-                        <li class="focus-empty">No recent updates yet.</li>
-                    @endforelse
-                </ul>
-            </article>
-        </div>
-
-        <div class="focus-actions">
-            <a href="{{ route('admin.handlereports') }}" class="btn-primary">Open Handle Reports</a>
-            <a href="{{ route('admin.reports') }}" class="btn-secondary">Open New Reports</a>
-        </div>
+                <div class="continue-work-actions">
+                    <a href="{{ route('admin.handlereports.show', $lastManagedReport->id) }}" class="btn-primary">Continue Report</a>
+                </div>
+            @else
+                <p class="continue-work-empty">No managed reports yet. Start from New Reports or Handle Reports.</p>
+            @endif
+        </article>
     </section>
+
 @endsection
 
 @push('styles')
 <style>
+    .continue-work-wrap {
+        margin-bottom: 1rem;
+        padding: 0 1rem;
+    }
+
+    .continue-work-card {
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 0.95rem;
+        background: linear-gradient(135deg, rgba(11, 31, 83, 0.9), rgba(15, 118, 110, 0.65));
+        padding: 0.95rem 1rem;
+    }
+
+    .continue-work-card h2 {
+        margin: 0 0 0.55rem;
+        font-size: 1.05rem;
+        color: #ffffff;
+    }
+
+    .continue-work-primary {
+        margin: 0;
+        color: #ffffff;
+    }
+
+    .continue-work-meta {
+        display: block;
+        margin-top: 0.18rem;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 0.88rem;
+    }
+
+    .continue-work-line {
+        margin: 0.45rem 0 0;
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.92rem;
+    }
+
+    .continue-work-empty {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .continue-work-actions {
+        margin-top: 0.75rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .continue-work-actions .btn-primary {
+        text-decoration: none;
+        min-height: 40px;
+        padding: 0.65rem 0.95rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .admin-stats {
         gap: 0.85rem;
         margin-bottom: 1.25rem;
@@ -165,83 +206,15 @@
         background: var(--status-resolved-bg);
     }
 
-    .admin-focus {
-        margin-top: 0.25rem;
-    }
-
-    .focus-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-        padding: 0 1rem 1rem;
-    }
-
-    .focus-card {
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 0.8rem;
-        background: rgba(255, 255, 255, 0.06);
-        padding: 0.9rem;
-    }
-
-    .focus-card h3 {
-        margin: 0 0 0.65rem;
-        padding: 0;
-        font-size: 1rem;
-        color: #ffffff;
-    }
-
-    .focus-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.55rem;
-    }
-
-    .focus-item {
-        display: flex;
-        align-items: flex-start;
-        padding: 0.55rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .focus-item:last-child {
-        border-bottom: none;
-    }
-
-    .focus-meta {
-        display: block;
-        margin-top: 0.2rem;
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.78);
-    }
-
-    .focus-empty {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 0.9rem;
-        padding: 0.5rem 0;
-    }
-
-    .focus-actions {
-        display: flex;
-        gap: 0.75rem;
-        padding: 0 1rem 1rem;
-        flex-wrap: wrap;
-    }
-
-    .focus-actions .btn-primary,
-    .focus-actions .btn-secondary {
-        text-decoration: none;
-        min-height: 42px;
-        padding: 0.7rem 1rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 1 1 220px;
-    }
-
     @media (max-width: 768px) {
+        .continue-work-wrap {
+            padding: 0 0.8rem;
+        }
+
+        .continue-work-card {
+            padding: 0.8rem 0.85rem;
+        }
+
         .admin-stats {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.6rem;
@@ -260,28 +233,6 @@
 
         .admin-stats .card p {
             font-size: 1.55rem;
-        }
-
-        .focus-grid {
-            grid-template-columns: 1fr;
-            gap: 0.7rem;
-            padding: 0 0.8rem 0.8rem;
-        }
-
-        .focus-card {
-            padding: 0.75rem;
-        }
-
-        .focus-actions {
-            padding: 0 0.8rem 0.8rem;
-            gap: 0.55rem;
-            flex-direction: column;
-        }
-
-        .focus-actions .btn-primary,
-        .focus-actions .btn-secondary {
-            width: 100%;
-            flex: 1 1 auto;
         }
     }
 

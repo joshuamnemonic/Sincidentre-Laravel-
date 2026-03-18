@@ -148,6 +148,70 @@
         @yield('content')
     </main>
 
+    <div id="systemDialog" class="system-dialog" aria-hidden="true">
+        <div class="system-dialog-backdrop" data-system-dialog-close></div>
+        <div class="system-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="systemDialogTitle">
+            <h3 id="systemDialogTitle">Confirm Action</h3>
+            <p id="systemDialogMessage"></p>
+            <div class="system-dialog-actions">
+                <button type="button" id="systemDialogCancel" class="btn-secondary">Cancel</button>
+                <button type="button" id="systemDialogConfirm" class="btn-submit">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .system-dialog {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .system-dialog.show {
+            display: flex;
+        }
+
+        .system-dialog-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.7);
+        }
+
+        .system-dialog-panel {
+            position: relative;
+            z-index: 1;
+            width: min(460px, calc(100% - 1.25rem));
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(180deg, #0b1f53, #0a1536);
+            color: #ffffff;
+            padding: 1rem 1.1rem;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+        }
+
+        .system-dialog-panel h3 {
+            margin: 0 0 0.55rem;
+            font-size: 1.02rem;
+        }
+
+        .system-dialog-panel p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.55;
+        }
+
+        .system-dialog-actions {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+        }
+    </style>
+
     <!-- Scripts -->
     <script>
         function enableResponsiveTables() {
@@ -168,16 +232,81 @@
             });
         }
 
-        document.getElementById('admin-logout-btn').addEventListener('click', function(e) {
-            e.preventDefault();
-            if (this.hasAttribute('data-pending-response')) {
-                alert('Complete the Add Handling Response form before logging out.');
+        const systemDialog = document.getElementById('systemDialog');
+        const systemDialogMessage = document.getElementById('systemDialogMessage');
+        const systemDialogCancel = document.getElementById('systemDialogCancel');
+        const systemDialogConfirm = document.getElementById('systemDialogConfirm');
+        let systemDialogOnConfirm = null;
+
+        function closeSystemDialog() {
+            if (!systemDialog) return;
+            systemDialog.classList.remove('show');
+            systemDialog.setAttribute('aria-hidden', 'true');
+            systemDialogOnConfirm = null;
+        }
+
+        function openSystemDialog(message, onConfirm, options) {
+            if (!systemDialog || !systemDialogMessage || !systemDialogConfirm) {
+                if (typeof onConfirm === 'function' && confirm(message)) {
+                    onConfirm();
+                }
                 return;
             }
 
-            if (confirm('Are you sure you want to logout?')) {
-                document.getElementById('admin-logout-form').submit();
+            const dialogOptions = options || {};
+            const confirmLabel = dialogOptions.confirmLabel || 'Confirm';
+            const cancelLabel = dialogOptions.cancelLabel || 'Cancel';
+            const hideCancel = dialogOptions.hideCancel === true;
+
+            systemDialogMessage.textContent = message;
+            systemDialogConfirm.textContent = confirmLabel;
+
+            if (systemDialogCancel) {
+                systemDialogCancel.textContent = cancelLabel;
+                systemDialogCancel.style.display = hideCancel ? 'none' : 'inline-flex';
             }
+
+            systemDialogOnConfirm = typeof onConfirm === 'function' ? onConfirm : null;
+            systemDialog.classList.add('show');
+            systemDialog.setAttribute('aria-hidden', 'false');
+        }
+
+        if (systemDialogCancel) {
+            systemDialogCancel.addEventListener('click', closeSystemDialog);
+        }
+
+        if (systemDialogConfirm) {
+            systemDialogConfirm.addEventListener('click', function () {
+                const callback = systemDialogOnConfirm;
+                closeSystemDialog();
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            });
+        }
+
+        if (systemDialog) {
+            systemDialog.querySelectorAll('[data-system-dialog-close]').forEach(function (closer) {
+                closer.addEventListener('click', closeSystemDialog);
+            });
+        }
+
+        document.getElementById('admin-logout-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (this.hasAttribute('data-pending-response')) {
+                openSystemDialog('Complete the Add Handling Response form before logging out.', null, {
+                    confirmLabel: 'OK',
+                    hideCancel: true
+                });
+                return;
+            }
+
+            openSystemDialog('Are you sure you want to logout?', function () {
+                document.getElementById('admin-logout-form').submit();
+            }, {
+                confirmLabel: 'Logout',
+                cancelLabel: 'Stay Logged In'
+            });
         });
 
         enableResponsiveTables();
@@ -240,6 +369,11 @@
         });
 
         document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && systemDialog && systemDialog.classList.contains('show')) {
+                closeSystemDialog();
+                return;
+            }
+
             if (event.key === 'Escape' && isMobileView()) {
                 closeMobileMenu();
             }

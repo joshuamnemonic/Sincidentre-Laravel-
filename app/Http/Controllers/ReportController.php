@@ -56,6 +56,11 @@ class ReportController extends Controller
             $request->merge(['additional_persons' => null]);
         }
 
+        $hasWitnesses = filter_var($request->input('has_witnesses'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        if (!$hasWitnesses) {
+            $request->merge(['witness_details' => null]);
+        }
+
         $validator = Validator::make($request->all(), [
             'main_category_code' => ['required', 'string', Rule::exists('categories', 'main_category_code')],
             'category_id' => ['required', 'integer', 'exists:categories,id'],
@@ -83,10 +88,10 @@ class ReportController extends Controller
             'location_details' => 'nullable|string|max:255',
 
             'has_witnesses' => 'required|boolean',
-            'witness_details' => 'required_if:has_witnesses,1|array',
-            'witness_details.*.name' => 'required_if:has_witnesses,1|string|max:255',
-            'witness_details.*.address' => 'required_if:has_witnesses,1|string|max:255',
-            'witness_details.*.contact_number' => 'required_if:has_witnesses,1|string|max:50',
+            'witness_details' => 'exclude_unless:has_witnesses,1|required|array|min:1',
+            'witness_details.*.name' => 'exclude_unless:has_witnesses,1|required|string|max:255',
+            'witness_details.*.address' => 'exclude_unless:has_witnesses,1|required|string|max:255',
+            'witness_details.*.contact_number' => 'exclude_unless:has_witnesses,1|required|string|max:50',
             'incident_additional_sheets.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
 
             'informant_contact_number' => 'nullable|string|max:50',

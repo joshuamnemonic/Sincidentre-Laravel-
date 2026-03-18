@@ -97,7 +97,7 @@
                         <td>{{ $report->assigned_to ?? 'Unassigned' }}</td>
                         <td>
                             @if(strtolower((string) $report->status) === strtolower(\App\Models\Report::STATUS_RESOLVED))
-                                <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View</a>
+                                <a href="{{ route('admin.handlereports.show', $report->id) }}" class="btn-view">View</a>
                             @else
                                 <form action="{{ route('admin.handlereports.show', $report->id) }}" method="GET" style="display: inline;">
                                     <button type="submit" class="btn-handle">Handle</button>

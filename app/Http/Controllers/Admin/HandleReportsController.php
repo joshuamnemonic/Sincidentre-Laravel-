@@ -304,15 +304,17 @@ class HandleReportsController extends Controller
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $allowedStatuses = ['approved', 'rejected', 'under review', 'resolved'];
+        $defaultPreviewStatuses = ['approved', 'under review'];
+        $filterableStatuses = ['approved', 'rejected', 'under review', 'resolved'];
         $selectedStatus = strtolower((string) $request->get('status', ''));
-        if (!in_array($selectedStatus, $allowedStatuses, true)) {
+        if (!in_array($selectedStatus, $filterableStatuses, true)) {
             $selectedStatus = '';
         }
 
         $query = $this->applyRoleVisibility(Report::with(['user', 'category'])
-            ->where(function ($q) use ($allowedStatuses) {
-                foreach ($allowedStatuses as $index => $status) {
+            ->where(function ($q) use ($selectedStatus, $defaultPreviewStatuses) {
+                $statuses = $selectedStatus !== '' ? [$selectedStatus] : $defaultPreviewStatuses;
+                foreach ($statuses as $index => $status) {
                     if ($index === 0) {
                         $q->whereRaw('LOWER(status) = ?', [$status]);
                     } else {
@@ -323,11 +325,14 @@ class HandleReportsController extends Controller
             $admin
         );
 
-        // Escalated reports are shown in a separate read-only section.
-        $query->where(function ($q) use ($admin) {
-            $q->where('escalated_to_top_management', false)
-              ->orWhereNull('escalated_to_top_management');
-        });
+                // For DSDO, escalated reports are shown in a separate read-only section.
+                // For Top Management, keep escalated reports in the main list.
+                if (!(bool) $admin->is_top_management) {
+                        $query->where(function ($q) {
+                                $q->where('escalated_to_top_management', false)
+                                    ->orWhereNull('escalated_to_top_management');
+                        });
+                }
 
         // FILTER: Category
         if ($request->filled('category')) {
@@ -410,8 +415,9 @@ class HandleReportsController extends Controller
         $escalatedReportsQuery = $this->applyRoleVisibility(
             Report::with(['user', 'category'])
                 ->where('escalated_to_top_management', true)
-                ->where(function ($q) use ($allowedStatuses) {
-                    foreach ($allowedStatuses as $index => $status) {
+                ->where(function ($q) use ($selectedStatus, $defaultPreviewStatuses) {
+                    $statuses = $selectedStatus !== '' ? [$selectedStatus] : $defaultPreviewStatuses;
+                    foreach ($statuses as $index => $status) {
                         if ($index === 0) {
                             $q->whereRaw('LOWER(status) = ?', [$status]);
                         } else {
@@ -473,7 +479,7 @@ class HandleReportsController extends Controller
         $categories = Category::all();
 
         // Get available statuses for filter
-        $statuses = $allowedStatuses;
+        $statuses = $filterableStatuses;
 
         // Count reports by status for quick overview
         $statusCounts = [
@@ -760,6 +766,10 @@ class HandleReportsController extends Controller
         $admin = Auth::user();
         $report = $this->applyRoleVisibility(Report::with(['user', 'category']), $admin)->findOrFail($id);
         Gate::authorize('accessHandling', $report);
+
+        if ((bool) $admin->is_top_management) {
+            return back()->with('error', 'Form 2304 is restricted to DSDO handling only.');
+        }
 
         if (!$this->reportHasPersonsInvolved($report)) {
             return back()->with('error', 'Form 2304 is only available when person involvement is Known, Unknown, or Not sure yet.');
@@ -1209,6 +1219,10 @@ class HandleReportsController extends Controller
     public function update(Request $request, $id)
     {
         $admin = Auth::user();
+
+        if (!$request->filled('department_id') && !empty($admin->department_id)) {
+            $request->merge(['department_id' => (int) $admin->department_id]);
+        }
 
         $request->validate([
             'department_id'  => 'required|exists:departments,id',

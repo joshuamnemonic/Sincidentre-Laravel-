@@ -511,6 +511,7 @@
 
             witnessDetailsContainer.querySelectorAll('input').forEach(function (el) {
                 el.required = show;
+                el.disabled = !show;
             });
         }
 

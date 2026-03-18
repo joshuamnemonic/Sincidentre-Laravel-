@@ -93,6 +93,176 @@
                 <label>Description</label>
                 <p>{{ $report->description }}</p>
             </div>
+
+            @php
+                $personInvolvementLabel = [
+                    'known' => 'Yes, known identity',
+                    'unknown' => 'Yes, unknown identity',
+                    'none' => 'No person involved',
+                    'unsure' => 'Not sure yet',
+                ][(string) $report->person_involvement] ?? ucfirst((string) $report->person_involvement);
+
+                $incidentAdditionalSheets = [];
+                if (!empty($report->incident_additional_sheets)) {
+                    $decodedIncidentSheets = json_decode((string) $report->incident_additional_sheets, true);
+                    if (is_array($decodedIncidentSheets)) {
+                        $incidentAdditionalSheets = $decodedIncidentSheets;
+                    }
+                }
+            @endphp
+
+            @if(!empty($report->person_involvement))
+                <div class="detail-item">
+                    <label>Person Involvement</label>
+                    <p>{{ $personInvolvementLabel }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->person_full_name))
+                <div class="detail-item">
+                    <label>Person Full Name</label>
+                    <p>{{ $report->person_full_name }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->person_college_department))
+                <div class="detail-item">
+                    <label>Person College/Department</label>
+                    <p>{{ $report->person_college_department }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->person_role))
+                <div class="detail-item">
+                    <label>Person Role</label>
+                    <p>{{ $report->person_role }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->person_contact_number))
+                <div class="detail-item">
+                    <label>Person Contact Number</label>
+                    <p>{{ $report->person_contact_number }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->person_email_address))
+                <div class="detail-item">
+                    <label>Person Email Address</label>
+                    <p>{{ $report->person_email_address }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->unknown_person_details))
+                <div class="detail-item full-width">
+                    <label>Unknown Person Details</label>
+                    <p>{{ $report->unknown_person_details }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->technical_facility_details))
+                <div class="detail-item full-width">
+                    <label>Technical/Facility Specific Details</label>
+                    <p>{{ $report->technical_facility_details }}</p>
+                </div>
+            @endif
+
+            <div class="detail-item">
+                <label>Were There Multiple Persons Involved?</label>
+                <p>{{ $report->person_has_multiple ? 'Yes' : 'No' }}</p>
+            </div>
+
+            @if(is_array($report->additional_persons) && count($report->additional_persons) > 0)
+                <div class="detail-item full-width">
+                    <label>Additional Persons</label>
+                    <ul>
+                        @foreach($report->additional_persons as $person)
+                            <li>
+                                {{ $person['full_name'] ?? 'Unnamed Person' }}
+                                @if(!empty($person['college_department'])) - {{ $person['college_department'] }} @endif
+                                @if(!empty($person['role'])) ({{ $person['role'] }}) @endif
+                                @if(!empty($person['contact_number'])) | {{ $person['contact_number'] }} @endif
+                                @if(!empty($person['email_address'])) | {{ $person['email_address'] }} @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div class="detail-item">
+                <label>Were There Any Witnesses?</label>
+                <p>{{ $report->has_witnesses ? 'Yes' : 'No' }}</p>
+            </div>
+
+            @if(is_array($report->witness_details) && count($report->witness_details) > 0)
+                <div class="detail-item full-width">
+                    <label>Witness Details</label>
+                    <ul>
+                        @foreach($report->witness_details as $witness)
+                            <li>
+                                {{ $witness['name'] ?? ($witness['full_name'] ?? 'Unnamed Witness') }}
+                                @if(!empty($witness['address'])) - {{ $witness['address'] }} @endif
+                                @if(!empty($witness['contact_number'])) | {{ $witness['contact_number'] }} @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if(count($incidentAdditionalSheets) > 0)
+                <div class="detail-item full-width">
+                    <label>Incident Additional Sheets</label>
+                    <ul>
+                        @foreach($incidentAdditionalSheets as $sheetPath)
+                            <li>
+                                <a href="{{ asset('storage/' . $sheetPath) }}" target="_blank" class="file-link">{{ basename($sheetPath) }}</a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if(!empty($report->informant_full_name))
+                <div class="detail-item">
+                    <label>Informant Full Name</label>
+                    <p>{{ $report->informant_full_name }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->informant_college_department))
+                <div class="detail-item">
+                    <label>Informant College/Department</label>
+                    <p>{{ $report->informant_college_department }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->informant_role))
+                <div class="detail-item">
+                    <label>Informant Role</label>
+                    <p>{{ $report->informant_role }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->informant_contact_number))
+                <div class="detail-item">
+                    <label>Informant Contact Number</label>
+                    <p>{{ $report->informant_contact_number }}</p>
+                </div>
+            @endif
+
+            @if(!empty($report->informant_email_address))
+                <div class="detail-item">
+                    <label>Informant Email Address</label>
+                    <p>{{ $report->informant_email_address }}</p>
+                </div>
+            @endif
+
+            @if($report->submitted_at)
+                <div class="detail-item">
+                    <label>Submitted At</label>
+                    <p>{{ $report->submitted_at->format('F d, Y h:i A') }}</p>
+                </div>
+            @endif
         </div>
     </section>
 
@@ -259,7 +429,7 @@
 
     <!-- Unified Department Student Discipline Officer Response Timeline -->
     <section id="admin-response-timeline" class="animate">
-        <h2>📋 DSDO and Top Management Response Timeline</h2>
+        <h2>📋Response Timeline</h2>
 
         @php
             $responses = $report->responses->sortByDesc('response_number');
