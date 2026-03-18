@@ -19,10 +19,16 @@ use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AdminProfileController;
+use App\Models\Department;
+use Illuminate\Support\Facades\Schema;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    $departments = Schema::hasTable('departments')
+        ? Department::orderBy('name')->get()
+        : collect();
+
+    return view('welcome', compact('departments'));
 });
 
 // --------------------
@@ -187,6 +193,9 @@ Route::get('/newreport', [ReportController::class, 'create'])->name('newreport')
 Route::post('/newreport', [ReportController::class, 'store'])->name('reports.store');
 Route::get('/myreports', [MyReportsController::class, 'index'])->name('myreports');
 Route::get('/reports/{id}', [ReportController::class, 'show'])->name('report.show');
+Route::post('/notifications/read', [ReportController::class, 'markNotificationRead'])
+    ->middleware('auth')
+    ->name('notifications.read');
 
 // DEPARTMENT MANAGEMENT (Top Management only)
 Route::prefix('admin')->middleware(['auth', 'is_top_management', 'pending_handling_response'])->name('admin.')->group(function () {

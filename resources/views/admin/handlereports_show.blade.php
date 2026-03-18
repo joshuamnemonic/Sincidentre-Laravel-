@@ -1,14 +1,15 @@
 @extends('layouts.admin')
 
-@section('title', 'Handle Report #' . $report->id . ' - Sincidentre Department Student Discipline Officer')
+@section('title', 'Handle Report ' . $report->id . ' - Sincidentre Department Student Discipline Officer')
 
-@section('page-title', '📝 Handle Report #' . $report->id)
+@section('page-title', 'Handle Report ' . $report->id)
 
 @section('content')
     @php
         $currentStatus = \App\Models\Report::normalizeStatus($report->status);
         $personInvolvement = strtolower((string) ($report->person_involvement ?? ''));
-        $hasPersonInvolvement = in_array($personInvolvement, ['known', 'unknown'], true);
+        $hasPersonInvolvement = in_array($personInvolvement, ['known', 'unknown', 'unsure'], true);
+        $isNoPersonInvolved = $personInvolvement === 'none';
         $isTopManagementUser = (bool) (Auth::user()->is_top_management ?? false);
         $step1Done = (bool) ($report->hearing_date && $report->hearing_time && $report->hearing_venue);
         $step2Done = (bool) $report->reprimand_issued_at;
@@ -16,9 +17,11 @@
         $step1Errors = $errors->hasAny(['hearing_date', 'hearing_time', 'hearing_venue', 'step1_remarks', 'step1_target_date', 'step1_attachment']);
         $step2Errors = $errors->hasAny(['step2_remarks', 'step2_target_date', 'step2_status', 'step2_attachment']);
         $step3Errors = $errors->hasAny(['disciplinary_action', 'suspension_days', 'suspension_effective_date', 'step3_remarks', 'step3_target_date', 'step3_status', 'step3_attachment']);
-        $step4Errors = $errors->hasAny(['top_management_user_id', 'escalation_note', 'step4_remarks', 'step4_target_date', 'step4_attachment']);
+        $step4Errors = $errors->hasAny(['escalation_target_user_id', 'escalation_note', 'step4_remarks', 'step4_target_date', 'step4_attachment']);
+        $generalResponseErrors = $errors->hasAny(['department_id', 'target_date', 'remarks', 'status', 'assigned_to_user_id']);
         $showStep1Panel = !$step1Done || $step1Errors;
         $showEscalationPanel = $step4Errors;
+        $showGeneralResponsePanel = $generalResponseErrors;
         $reporterConfirmed = \App\Models\Activity::where('report_id', $report->id)
             ->where('action', 'Reporter Hearing Notice Confirmed')
             ->exists();
@@ -42,7 +45,7 @@
     @endif
 
     <section id="report-details" class="handle-section">
-        <h2>Submitted Report Details (Form 2302 View)</h2>
+        <h2 class="handle-title-centered">Submitted Report Details (Form 2302 View)</h2>
         <table class="handle-report-table">
             <tr>
                 <th>Report ID</th>
@@ -100,7 +103,7 @@
             </tr>
         </table>
 
-        <h3 class="handle-card-title handle-spacing-top">Section 1: Information About the Person/s Involved in the Incident</h3>
+        <h3 class="handle-card-title handle-spacing-top handle-title-centered">Section 1: Information About the Person/s Involved in the Incident</h3>
         <table class="handle-report-table handle-spacing-top">
             <tr>
                 <th>Reported Person Name</th>
@@ -152,9 +155,9 @@
                     @foreach($report->additional_persons as $index => $person)
                         <tr>
                             <td>{{ $index + 1 }}</td>
-                            <td>{{ $person['name'] ?? 'N/A' }}</td>
+                            <td>{{ $person['full_name'] ?? ($person['name'] ?? 'N/A') }}</td>
                             <td>{{ $person['college_department'] ?? 'N/A' }}</td>
-                            <td>{{ $person['id_number'] ?? 'N/A' }}</td>
+                            <td>{{ $person['role'] ?? ($person['id_number'] ?? 'N/A') }}</td>
                             <td>{{ $person['email_address'] ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
@@ -162,7 +165,7 @@
             </table>
         @endif
 
-        <h3 class="handle-card-title handle-spacing-top">Section 2: Information About the Incident</h3>
+        <h3 class="handle-card-title handle-spacing-top handle-title-centered">Section 2: Information About the Incident</h3>
         <table class="handle-report-table handle-spacing-top">
             <tr>
                 <th>Were There Any Witnesses?</th>
@@ -175,7 +178,8 @@
                         <ul>
                             @foreach($report->witness_details as $witness)
                                 <li>
-                                    {{ $witness['full_name'] ?? 'Unnamed Witness' }}
+                                    {{ $witness['name'] ?? ($witness['full_name'] ?? 'Unnamed Witness') }}
+                                    @if(!empty($witness['address'])) - {{ $witness['address'] }} @endif
                                     @if(!empty($witness['college_department'])) - {{ $witness['college_department'] }} @endif
                                     @if(!empty($witness['role'])) ({{ $witness['role'] }}) @endif
                                     @if(!empty($witness['contact_number'])) | {{ $witness['contact_number'] }} @endif
@@ -202,7 +206,23 @@
                 <th>Additional Incident Sheets</th>
                 <td>
                     @if($report->incident_additional_sheets)
-                        <a href="{{ asset('storage/' . $report->incident_additional_sheets) }}" target="_blank">View Additional Sheet</a>
+                        @php
+                            $sheetFiles = is_array($report->incident_additional_sheets)
+                                ? $report->incident_additional_sheets
+                                : json_decode((string) $report->incident_additional_sheets, true);
+                            $sheetFiles = is_array($sheetFiles) ? $sheetFiles : [];
+                        @endphp
+                        @if(count($sheetFiles) > 0)
+                            <ul>
+                                @foreach($sheetFiles as $sheetIndex => $sheetFile)
+                                    <li>
+                                        <a href="{{ asset('storage/' . $sheetFile) }}" target="_blank">View Additional Sheet {{ $sheetIndex + 1 }}</a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            N/A
+                        @endif
                     @else
                         N/A
                     @endif
@@ -210,7 +230,7 @@
             </tr>
         </table>
 
-        <h3 class="handle-card-title handle-spacing-top">Section 3: Information About the Informant</h3>
+        <h3 class="handle-card-title handle-spacing-top handle-title-centered">Section 3: Information About the Informant</h3>
         <table class="handle-report-table handle-spacing-top">
             <tr>
                 <th>Informant Full Name</th>
@@ -235,19 +255,59 @@
         </table>
     </section>
 
-    <section id="handling-forms" class="handle-section handle-spacing-top">
-        <h2>Handling Forms (2303, 2304, 2305)</h2>
+    @if($report->evidence)
+        <section id="evidence-section" class="handle-section handle-spacing-top">
+            <h2>Submitted Evidence</h2>
+            @php
+                $evidences = json_decode($report->evidence, true);
+            @endphp
+            @if(is_array($evidences) && count($evidences) > 0)
+                <div class="evidence-grid">
+                    @foreach($evidences as $file)
+                        @php
+                            $extension = pathinfo($file, PATHINFO_EXTENSION);
+                            $fileName = basename($file);
+                            $isImage = in_array(strtolower($extension), ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                        @endphp
 
-        @if(!$hasPersonInvolvement)
+                        @if($isImage)
+                            <div class="evidence-item">
+                                <a href="{{ asset('storage/' . $file) }}" target="_blank" rel="noopener noreferrer">
+                                    <img src="{{ asset('storage/' . $file) }}" alt="Evidence Image" class="handle-evidence-image">
+                                </a>
+                                <div class="evidence-actions">
+                                    <a href="{{ asset('storage/' . $file) }}" target="_blank" rel="noopener noreferrer" class="btn-secondary">View</a>
+                                    <a href="{{ asset('storage/' . $file) }}" download="{{ $fileName }}" class="btn-secondary">Download</a>
+                                </div>
+                            </div>
+                        @else
+                            <div class="evidence-item">
+                                <p>{{ $fileName }}</p>
+                                <div class="evidence-actions">
+                                    <a href="{{ asset('storage/' . $file) }}" target="_blank" rel="noopener noreferrer" class="btn-secondary">View File</a>
+                                    <a href="{{ asset('storage/' . $file) }}" download="{{ $fileName }}" class="btn-secondary">Download</a>
+                                </div>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    @endif
+
+    <section id="handling-forms" class="handle-section handle-spacing-top">
+        <h2 class="handle-title-centered">Handling Forms</h2>
+
+        @if(!$hasPersonInvolvement && !$isNoPersonInvolved)
             <div class="alert alert-warning">
-                Forms 2303, 2304, and 2305 are only available when person involvement is <strong>Known</strong> or <strong>Unknown</strong>.
+                Forms 2303, 2304, and 2305 are only available when person involvement is <strong>Known</strong>, <strong>Unknown</strong>, or <strong>Not sure yet</strong>.
             </div>
         @endif
 
         @if($hasPersonInvolvement)
 
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title">2303: Schedule Hearing and Notify Parties</h3>
+            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 1</span>2303: Schedule Hearing and Notify Parties</h3>
             <div class="handle-inline-actions handle-small-bottom-space">
                 <button type="button" class="btn-secondary" id="toggleStep1Btn" onclick="toggleSection('step1Panel', 'toggleStep1Btn', 'Show 2303 (Reschedule Hearing)', 'Hide 2303')">
                     {{ $showStep1Panel ? 'Hide 2303' : 'Show 2303 (Reschedule Hearing)' }}
@@ -296,12 +356,6 @@
             </form>
             </div>
 
-            <form action="{{ route('admin.handlereports.notify-respondent', $report->id) }}" method="POST">
-                @csrf
-                <button type="submit">Send Hearing Notification to Reporter and Involved Parties</button>
-                <small class="handle-muted-note">Sends email notifications and logs in-system notices for accounts found by email.</small>
-            </form>
-
             <p class="handle-meta-line"><strong>Last notified:</strong>
                 {{ $report->respondent_notified_at ? $report->respondent_notified_at->format('M d, Y h:i A') : 'Not yet notified' }}
             </p>
@@ -317,16 +371,90 @@
 
         @if($step1Done)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title">Form 2304: Written Reprimand</h3>
+            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip handle-step-chip-optional">Optional</span>Additional DSDO Handling Response (Non-Form 2303/2304/2305)</h3>
+            <p class="handle-meta-line">
+                If the case is still in progress after Form 2303, you can add another handling response here
+                without proceeding to Form 2304 yet.
+            </p>
+            <div class="handle-inline-actions handle-small-bottom-space">
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    id="toggleGeneralResponseBtn"
+                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional DSDO Response', 'Hide Additional DSDO Response')"
+                >
+                    {{ $showGeneralResponsePanel ? 'Hide Additional DSDO Response' : 'Show Additional DSDO Response' }}
+                </button>
+            </div>
+
+            <div id="generalResponsePanel" style="display: {{ $showGeneralResponsePanel ? 'block' : 'none' }};">
+                <form action="{{ route('admin.handlereports.update', $report->id) }}" method="POST" class="handle-form-block">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="status" value="Under Review">
+
+                    <div class="handle-grid-3">
+                        <div class="form-group handle-form-group">
+                            <label><strong>Department</strong></label><br>
+                            <select name="department_id" required>
+                                <option value="" disabled {{ old('department_id') ? '' : 'selected' }}>Select department</option>
+                                @foreach($departments as $department)
+                                    <option value="{{ $department->id }}" {{ (string) old('department_id', optional(Auth::user())->department_id) === (string) $department->id ? 'selected' : '' }}>
+                                        {{ $department->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="form-group handle-form-group">
+                            <label><strong>Target Date</strong></label><br>
+                            <input type="date" name="target_date" value="{{ old('target_date') }}" required>
+                        </div>
+
+                        <div class="form-group handle-form-group">
+                            <label><strong>Status</strong></label><br>
+                            <input type="text" value="Under Review" class="readonly-field" readonly>
+                        </div>
+                    </div>
+
+                    @if($isTopManagementUser)
+                        <div class="form-group handle-form-group">
+                            <label><strong>Assign To (Optional)</strong></label><br>
+                            <select name="assigned_to_user_id">
+                                <option value="">Keep current assignment</option>
+                                @foreach($handlerUsers as $handlerUser)
+                                    @php
+                                        $handlerName = trim((string) (($handlerUser->first_name ?? '') . ' ' . ($handlerUser->last_name ?? '')));
+                                    @endphp
+                                    <option value="{{ $handlerUser->id }}" {{ (string) old('assigned_to_user_id') === (string) $handlerUser->id ? 'selected' : '' }}>
+                                        {{ $handlerName !== '' ? $handlerName : ($handlerUser->name ?? 'User #' . $handlerUser->id) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <div class="form-group handle-form-group">
+                        <label><strong>DSDO Handling Response Remarks</strong></label><br>
+                        <textarea name="remarks" rows="3" placeholder="Add progress update or follow-up actions while case remains under review" required>{{ old('remarks') }}</textarea>
+                    </div>
+
+                    <div class="handle-inline-actions">
+                        <button type="submit">Record Additional DSDO Response</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="handle-card handle-card-spaced">
+            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 2</span>Form 2304: Written Reprimand</h3>
             <form id="issueReprimandForm" action="{{ route('admin.handlereports.issue-reprimand', $report->id) }}" method="POST" enctype="multipart/form-data" class="handle-form-block">
                 @csrf
+                <input type="hidden" name="step2_status" value="{{ \App\Models\Report::STATUS_RESOLVED }}">
                 <div class="handle-grid-3">
                     <div class="form-group handle-form-group">
                         <label><strong>Step 2 Status</strong></label><br>
-                        <select name="step2_status" required>
-                            <option value="{{ \App\Models\Report::STATUS_UNDER_REVIEW }}" {{ old('step2_status', \App\Models\Report::STATUS_RESOLVED) === \App\Models\Report::STATUS_UNDER_REVIEW ? 'selected' : '' }}>Under Review</option>
-                            <option value="{{ \App\Models\Report::STATUS_RESOLVED }}" {{ old('step2_status', \App\Models\Report::STATUS_RESOLVED) === \App\Models\Report::STATUS_RESOLVED ? 'selected' : '' }}>Resolved</option>
-                        </select>
+                        <input type="text" value="Resolved" class="readonly-field" readonly>
                     </div>
                     <div class="form-group handle-form-group">
                         <label><strong>Target Date (Optional)</strong></label><br>
@@ -355,8 +483,8 @@
         </div>
 
         @if($isTopManagementUser)
-        <div class="handle-card">
-            <h3 class="handle-card-title">Form 2305: Suspension or Dismissal</h3>
+        <div class="handle-card handle-card-spaced">
+            <h3 class="handle-card-title"><span class="handle-step-chip">Step 3</span>Form 2305: Suspension or Dismissal</h3>
             <form id="issueSuspensionForm" action="{{ route('admin.handlereports.issue-suspension', $report->id) }}" method="POST" enctype="multipart/form-data" class="handle-grid-3">
                 @csrf
                 <div class="form-group handle-form-group">
@@ -409,7 +537,7 @@
 
         @if(!$isTopManagementUser)
         <div class="handle-card handle-card-spaced">
-            <h3 class="handle-card-title">Escalation to Top Management</h3>
+            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip">Step 4</span>Escalation / Reassignment to Other Handler</h3>
 
             @if($report->escalated_to_top_management)
                 <p class="handle-meta-line"><strong>Escalation status:</strong> Already escalated{{ $report->assigned_to ? ' and assigned to ' . $report->assigned_to : '' }}.</p>
@@ -424,23 +552,26 @@
                     @csrf
                     <div class="handle-grid-3">
                         <div class="form-group handle-form-group">
-                            <label><strong>Escalate To</strong></label><br>
-                            <select name="top_management_user_id" required>
-                                <option value="" selected disabled>Select Top Management account</option>
-                                @foreach($topManagementUsers as $manager)
+                            <label><strong>Escalate/Reassign To</strong></label><br>
+                            <select name="escalation_target_user_id" required>
+                                <option value="" selected disabled>Select target handler</option>
+                                @foreach($escalationTargets as $manager)
                                     @php
                                         $managerName = trim((string) (($manager->first_name ?? '') . ' ' . ($manager->last_name ?? '')));
-                                        $managerOffice = trim((string) ($manager->employee_office ?? 'Top Management'));
+                                        $managerDepartment = trim((string) ($manager->department->name ?? 'No Department'));
+                                        $managerOffice = trim((string) ($manager->employee_office ?? ($manager->is_top_management ? 'Top Management' : $managerDepartment)));
+                                        $managerRole = $manager->is_top_management ? 'Top Management' : 'DSDO';
                                     @endphp
-                                    <option value="{{ $manager->id }}" {{ old('top_management_user_id') == $manager->id ? 'selected' : '' }}>
-                                        {{ $managerName }} ({{ $managerOffice }})
+                                    <option value="{{ $manager->id }}" {{ old('escalation_target_user_id') == $manager->id ? 'selected' : '' }}>
+                                        {{ $managerName }} ({{ $managerRole }} - {{ $managerOffice }})
                                     </option>
                                 @endforeach
                             </select>
+                            <small class="handle-muted-note">You may route this case to Top Management or to another department's DSDO.</small>
                         </div>
                         <div class="form-group handle-form-group handle-grid-span-2">
                             <label><strong>Escalation Note</strong></label><br>
-                            <textarea name="escalation_note" rows="3" placeholder="Optional note for Top Management handoff">{{ old('escalation_note') }}</textarea>
+                            <textarea name="escalation_note" rows="3" placeholder="Optional note for case handoff">{{ old('escalation_note') }}</textarea>
                         </div>
                     </div>
                     <div class="handle-grid-3">
@@ -462,7 +593,7 @@
                         <textarea name="step4_remarks" rows="3" placeholder="Visible to reporter/person involved" required>{{ old('step4_remarks') }}</textarea>
                     </div>
                     <div class="handle-inline-actions">
-                        <button type="submit">Escalate to Top Management</button>
+                        <button type="submit">Submit Escalation / Reassignment</button>
                         <small class="handle-muted-note">Escalation automatically keeps this case in Under Review.</small>
                     </div>
                 </form>
@@ -471,6 +602,83 @@
         </div>
         @endif
         @endif
+        @endif
+
+        @if($isNoPersonInvolved)
+        <div class="handle-card handle-card-spaced">
+            <h3 class="handle-card-title handle-title-centered"><span class="handle-step-chip handle-step-chip-optional">Optional</span>Additional DSDO Handling Response (Non-Form 2303/2304/2305)</h3>
+            <p class="handle-meta-line">
+                No person involved was selected for this report, so only this additional DSDO handling response is available.
+            </p>
+            <div class="handle-inline-actions handle-small-bottom-space">
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    id="toggleGeneralResponseBtn"
+                    onclick="toggleSection('generalResponsePanel', 'toggleGeneralResponseBtn', 'Show Additional DSDO Response', 'Hide Additional DSDO Response')"
+                >
+                    {{ $showGeneralResponsePanel ? 'Hide Additional DSDO Response' : 'Show Additional DSDO Response' }}
+                </button>
+            </div>
+
+            <div id="generalResponsePanel" style="display: {{ $showGeneralResponsePanel ? 'block' : 'none' }};">
+                <form action="{{ route('admin.handlereports.update', $report->id) }}" method="POST" class="handle-form-block">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="status" value="Under Review">
+
+                    <div class="handle-grid-3">
+                        <div class="form-group handle-form-group">
+                            <label><strong>Department</strong></label><br>
+                            <select name="department_id" required>
+                                <option value="" disabled {{ old('department_id') ? '' : 'selected' }}>Select department</option>
+                                @foreach($departments as $department)
+                                    <option value="{{ $department->id }}" {{ (string) old('department_id', optional(Auth::user())->department_id) === (string) $department->id ? 'selected' : '' }}>
+                                        {{ $department->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="form-group handle-form-group">
+                            <label><strong>Target Date</strong></label><br>
+                            <input type="date" name="target_date" value="{{ old('target_date') }}" required>
+                        </div>
+
+                        <div class="form-group handle-form-group">
+                            <label><strong>Status</strong></label><br>
+                            <input type="text" value="Under Review" class="readonly-field" readonly>
+                        </div>
+                    </div>
+
+                    @if($isTopManagementUser)
+                        <div class="form-group handle-form-group">
+                            <label><strong>Assign To (Optional)</strong></label><br>
+                            <select name="assigned_to_user_id">
+                                <option value="">Keep current assignment</option>
+                                @foreach($handlerUsers as $handlerUser)
+                                    @php
+                                        $handlerName = trim((string) (($handlerUser->first_name ?? '') . ' ' . ($handlerUser->last_name ?? '')));
+                                    @endphp
+                                    <option value="{{ $handlerUser->id }}" {{ (string) old('assigned_to_user_id') === (string) $handlerUser->id ? 'selected' : '' }}>
+                                        {{ $handlerName !== '' ? $handlerName : ($handlerUser->name ?? 'User #' . $handlerUser->id) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <div class="form-group handle-form-group">
+                        <label><strong>DSDO Handling Response Remarks</strong></label><br>
+                        <textarea name="remarks" rows="3" placeholder="Add progress update or follow-up actions while case remains under review" required>{{ old('remarks') }}</textarea>
+                    </div>
+
+                    <div class="handle-inline-actions">
+                        <button type="submit">Record Additional DSDO Response</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         @endif
     </section>
 
@@ -489,63 +697,40 @@
     </div>
 
     <section id="response-history" class="handle-section handle-spacing-top">
-        <h2>Response History</h2>
+        <div class="handle-inline-actions handle-small-bottom-space">
+            <button type="button" class="btn-secondary" id="toggleResponseHistoryBtn" onclick="toggleSection('responseHistoryPanel', 'toggleResponseHistoryBtn', 'Show Response History', 'Hide Response History')">Show Response History</button>
+        </div>
 
-        @forelse($responses as $response)
-            <div class="response-card">
-                <div class="response-card-head">
-                    <strong>Response #{{ $response->response_number }}</strong>
-                    <small>{{ $response->created_at->format('M d, Y h:i A') }}</small>
-                </div>
+        <div id="responseHistoryPanel" style="display: none;">
+            <h2>Response History</h2>
 
-                <p class="response-line response-line-first"><strong>Handled by:</strong> {{ $response->admin->name ?? 'Unknown Department Student Discipline Officer' }}</p>
-                <p class="response-line"><strong>Response type:</strong> {{ $response->response_type ?? 'Handling Response' }}</p>
-                <p class="response-line"><strong>Status:</strong> {{ \App\Models\Report::labelForStatus($response->status) }}</p>
-                <p class="response-line"><strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}</p>
-                <p class="response-line"><strong>Department:</strong> {{ $response->department ?? 'N/A' }}</p>
-                <p class="response-line"><strong>Target date:</strong> {{ $response->target_date ?? 'N/A' }}</p>
-                <p class="response-line"><strong>Remarks:</strong> {{ $response->remarks ?? 'No remarks' }}</p>
-                <p class="response-line"><strong>Attachment:</strong>
-                    @if($response->attachment_path)
-                        <a href="{{ asset('storage/' . $response->attachment_path) }}" target="_blank">View attachment</a>
-                    @else
-                        None
-                    @endif
-                </p>
-            </div>
-        @empty
-            <p>No responses have been recorded yet.</p>
-        @endforelse
-    </section>
+            @forelse($responses as $response)
+                <div class="response-card">
+                    <div class="response-card-head">
+                        <strong>Response #{{ $response->response_number }}</strong>
+                        <small>{{ $response->created_at->format('M d, Y h:i A') }}</small>
+                    </div>
 
-    <!-- Evidence Section (Optional - if you want to show evidence) -->
-    @if($report->evidence)
-        <section id="evidence-section" class="handle-section handle-spacing-top">
-            <h2>📎 Submitted Evidence</h2>
-            @php
-                $evidences = json_decode($report->evidence, true);
-            @endphp
-            @if(is_array($evidences) && count($evidences) > 0)
-                <div class="evidence-grid">
-                    @foreach($evidences as $file)
-                        @php
-                            $extension = pathinfo($file, PATHINFO_EXTENSION);
-                        @endphp
-
-                        @if(in_array(strtolower($extension), ['jpg','jpeg','png','gif']))
-                            <div class="evidence-item">
-                                <img src="{{ asset('storage/' . $file) }}" alt="Evidence Image" class="handle-evidence-image">
-                            </div>
+                    <p class="response-line response-line-first"><strong>Handled by:</strong> {{ $response->admin->name ?? 'Unknown Department Student Discipline Officer' }}</p>
+                    <p class="response-line"><strong>Response type:</strong> {{ $response->response_type ?? 'Handling Response' }}</p>
+                    <p class="response-line"><strong>Status:</strong> {{ \App\Models\Report::labelForStatus($response->status) }}</p>
+                    <p class="response-line"><strong>Assigned to:</strong> {{ $response->assigned_to ?? 'Unassigned' }}</p>
+                    <p class="response-line"><strong>Department:</strong> {{ $response->department ?? 'N/A' }}</p>
+                    <p class="response-line"><strong>Target date:</strong> {{ $response->target_date ?? 'N/A' }}</p>
+                    <p class="response-line"><strong>Remarks:</strong> {{ $response->remarks ?? 'No remarks' }}</p>
+                    <p class="response-line"><strong>Attachment:</strong>
+                        @if($response->attachment_path)
+                            <a href="{{ asset('storage/' . $response->attachment_path) }}" target="_blank">View attachment</a>
                         @else
-                            <div class="evidence-item">
-                                <a href="{{ asset('storage/' . $file) }}" target="_blank">📂 View File</a>
-                            </div>
+                            None
                         @endif
-                    @endforeach
+                    </p>
                 </div>
-            @endif
-        </section>
-    @endif
+            @empty
+                <p>No responses have been recorded yet.</p>
+            @endforelse
+        </div>
+    </section>
 @endsection
 
 @push('styles')
@@ -589,25 +774,156 @@
         margin-bottom: 0.75rem;
     }
 
+    .handle-title-centered {
+        text-align: center;
+    }
+
     input[name="suspension_days"] {
         max-width: 220px;
         font-weight: 600;
     }
 
     .readonly-field {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: rgba(255, 255, 255, 0.86);
+        background: #ffffff;
+        border: 1px solid rgba(17, 24, 39, 0.25);
+        color: #111111 !important;
+        -webkit-text-fill-color: #111111;
+        opacity: 1;
+        caret-color: #111111;
         cursor: not-allowed;
+    }
+
+    .readonly-field:focus,
+    .readonly-field[readonly] {
+        color: #111111 !important;
+        -webkit-text-fill-color: #111111;
+        opacity: 1;
+    }
+
+    .readonly-field::selection {
+        background: #bfdbfe;
+        color: #111111;
+    }
+
+    .readonly-field::-moz-selection {
+        background: #bfdbfe;
+        color: #111111;
+    }
+
+    /* Keep text readable when browser renders white form fields. */
+    .handle-form-block input:not([type="file"]):not(.readonly-field):not(.field-time-enhanced),
+    .handle-form-block select,
+    .handle-form-block textarea,
+    .handle-grid-3 input:not([type="file"]):not(.readonly-field):not(.field-time-enhanced),
+    .handle-grid-3 select,
+    .handle-grid-3 textarea {
+        background: #ffffff;
+        color: #111111;
+        caret-color: #111111;
+    }
+
+    .handle-form-block input:not([type="file"]):not(.readonly-field):not(.field-time-enhanced)::placeholder,
+    .handle-form-block textarea::placeholder,
+    .handle-grid-3 input:not([type="file"]):not(.readonly-field):not(.field-time-enhanced)::placeholder,
+    .handle-grid-3 textarea::placeholder {
+        color: #4b5563;
+    }
+
+    .handle-form-block input[type="date"]::-webkit-datetime-edit,
+    .handle-form-block input[type="time"]::-webkit-datetime-edit,
+    .handle-grid-3 input[type="date"]::-webkit-datetime-edit,
+    .handle-grid-3 input[type="time"]::-webkit-datetime-edit {
+        color: #111111;
+    }
+
+    .handle-form-block select option,
+    .handle-grid-3 select option {
+        color: #111111;
+        background: #ffffff;
     }
 
     .handle-grid-span-2 {
         grid-column: span 2;
     }
 
+    .handle-section {
+        margin-bottom: 1.75rem;
+    }
+
+    #handling-forms .handle-card {
+        margin-top: 1.15rem;
+        padding: 1.1rem 1.2rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+    }
+
+    #handling-forms .handle-grid-3 {
+        row-gap: 0.9rem;
+    }
+
+    #handling-forms .handle-form-group {
+        margin-bottom: 0.85rem;
+    }
+
+    .handle-flow-guide {
+        margin-top: 1rem;
+        margin-bottom: 1.25rem;
+        padding: 1rem 1.1rem;
+        border: 1px solid rgba(29, 78, 216, 0.35);
+        border-radius: 12px;
+        background: rgba(29, 78, 216, 0.08);
+    }
+
+    .handle-flow-guide-title {
+        margin: 0 0 0.55rem;
+        font-size: 1.02rem;
+        font-weight: 700;
+    }
+
+    .handle-flow-list {
+        margin: 0;
+        padding-left: 1.2rem;
+        line-height: 1.65;
+    }
+
+    .handle-step-chip {
+        display: inline-block;
+        margin-right: 0.5rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(15, 118, 110, 0.2);
+        border: 1px solid rgba(15, 118, 110, 0.45);
+        color: #d7fff8;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+    }
+
+    .handle-step-chip-optional {
+        background: rgba(217, 119, 6, 0.16);
+        border-color: rgba(217, 119, 6, 0.5);
+        color: #ffe9c5;
+    }
+
+    .evidence-actions {
+        margin-top: 0.6rem;
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .evidence-actions .btn-secondary {
+        text-decoration: none;
+    }
+
     @media (max-width: 900px) {
         .handle-grid-span-2 {
             grid-column: span 1;
+        }
+
+        #handling-forms .handle-card {
+            padding: 0.95rem;
         }
     }
 </style>

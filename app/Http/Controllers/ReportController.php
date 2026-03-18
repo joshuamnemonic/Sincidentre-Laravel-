@@ -183,18 +183,16 @@ class ReportController extends Controller
             }
         }
 
-        $location = $validated['location'];
-        if (!empty($validated['location_details'])) {
-            $location .= ' - ' . $validated['location_details'];
-        }
-
         $reportPayload = [
             'category_id'   => $validated['category_id'],
             'main_category_code' => $validated['main_category_code'],
             'description'   => $validated['description'],
             'incident_date' => $validated['incident_date'],
             'incident_time' => $validated['incident_time'],
-            'location'      => $location,
+            'location'      => $validated['location'],
+            'location_details' => Schema::hasColumn('reports', 'location_details')
+                ? ($validated['location_details'] ?? null)
+                : null,
             'evidence'      => !empty($evidencePaths) ? json_encode($evidencePaths) : null,
             'person_full_name'             => $validated['person_involvement'] === 'known' ? ($validated['person_full_name'] ?? null) : null,
             'person_college_department'    => $validated['person_involvement'] === 'known' ? ($validated['person_college_department'] ?? null) : null,
@@ -276,6 +274,45 @@ class ReportController extends Controller
         }
 
         return view('user.reportshow', compact('report'));
+    }
+
+    public function markNotificationRead(Request $request)
+    {
+        $notifKey = trim((string) $request->input('notif_key', ''));
+
+        if (preg_match('/^(timeline|hearing)-\d+$/', $notifKey) !== 1) {
+            return response()->json(['ok' => false, 'message' => 'Invalid notification key.'], 422);
+        }
+
+        $reportId = (int) substr($notifKey, strpos($notifKey, '-') + 1);
+        $userId = (int) Auth::id();
+
+        $ownsReport = Report::query()
+            ->where('id', $reportId)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (!$ownsReport) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized notification access.'], 403);
+        }
+
+        $sessionKey = 'read_notifications_' . $userId;
+        $readKeys = collect(session($sessionKey, []));
+        $pairedKeys = collect([
+            'timeline-' . $reportId,
+            'hearing-' . $reportId,
+        ]);
+
+        $mergedKeys = $readKeys
+            ->merge($pairedKeys)
+            ->map(fn ($key) => (string) $key)
+            ->unique()
+            ->values()
+            ->all();
+
+        session([$sessionKey => $mergedKeys]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function approve($id) {

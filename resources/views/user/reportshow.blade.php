@@ -82,6 +82,10 @@
                 <p>{{ $report->location }}</p>
             </div>
             <div class="detail-item">
+                <label>Please Specify</label>
+                <p>{{ $report->location_details ?: 'N/A' }}</p>
+            </div>
+            <div class="detail-item">
                 <label>Status</label>
                 <p><span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">{{ ucfirst($report->status) }}</span></p>
             </div>
@@ -93,7 +97,7 @@
     </section>
 
     <section id="case-records" class="animate">
-        <h2>Case Records and Disciplinary Forms</h2>
+        <h2>Case Records and Disciplinary Actions</h2>
 
         @if($report->hearing_date || $report->hearing_time || $report->hearing_venue)
             <div class="timeline-item" style="margin-bottom:10px;">
@@ -157,7 +161,7 @@
         @endif
 
         @if(!$report->reprimand_document_path && !$report->suspension_document_path)
-            <p class="no-data">No disciplinary forms have been issued for this case yet.</p>
+            <p class="no-data">No disciplinary actions have been issued for this case yet.</p>
         @endif
     </section>
 
@@ -172,28 +176,62 @@
                 <div class="evidence-grid">
                     @foreach($evidences as $file)
                         @php
-                            $extension = pathinfo($file, PATHINFO_EXTENSION);
+                            $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                            $fileUrl = asset('storage/' . $file);
+                            $fileName = basename($file);
+                            $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
+                            $isVideo = in_array($extension, ['mp4', 'webm', 'ogg'], true);
+                            $isPdf = $extension === 'pdf';
                         @endphp
 
-                        @if(in_array(strtolower($extension), ['jpg','jpeg','png','gif']))
-                            <div class="evidence-item">
-                                <img src="{{ asset('storage/' . $file) }}" alt="Evidence Image">
-                            </div>
-                        @elseif(in_array(strtolower($extension), ['mp4','webm','ogg']))
-                            <div class="evidence-item">
-                                <video controls>
-                                    <source src="{{ asset('storage/' . $file) }}" type="video/{{ $extension }}">
-                                    Your browser does not support the video tag.
+                        @if($isImage)
+                            <button
+                                type="button"
+                                class="evidence-item evidence-trigger"
+                                data-evidence-type="image"
+                                data-evidence-url="{{ $fileUrl }}"
+                                data-evidence-name="{{ $fileName }}"
+                                aria-label="View submitted image file {{ $fileName }}"
+                            >
+                                <img src="{{ $fileUrl }}" alt="Submitted evidence image {{ $fileName }}">
+                            </button>
+                        @elseif($isVideo)
+                            <button
+                                type="button"
+                                class="evidence-item evidence-trigger"
+                                data-evidence-type="video"
+                                data-evidence-url="{{ $fileUrl }}"
+                                data-evidence-name="{{ $fileName }}"
+                                aria-label="View submitted video file {{ $fileName }}"
+                            >
+                                <video muted preload="metadata" aria-hidden="true">
+                                    <source src="{{ $fileUrl }}" type="video/{{ $extension }}">
                                 </video>
-                            </div>
-                        @elseif(strtolower($extension) === 'pdf')
-                            <div class="evidence-item">
-                                <iframe src="{{ asset('storage/' . $file) }}"></iframe>
-                            </div>
+                            </button>
+                        @elseif($isPdf)
+                            <button
+                                type="button"
+                                class="evidence-item evidence-trigger"
+                                data-evidence-type="pdf"
+                                data-evidence-url="{{ $fileUrl }}"
+                                data-evidence-name="{{ $fileName }}"
+                                aria-label="View submitted PDF file {{ $fileName }}"
+                            >
+                                <iframe src="{{ $fileUrl }}" title="Submitted PDF preview {{ $fileName }}" aria-hidden="true"></iframe>
+                            </button>
                         @else
-                            <div class="evidence-item">
-                                <a href="{{ asset('storage/' . $file) }}" target="_blank" class="file-link">📂 View File</a>
-                            </div>
+                            <a
+                                href="{{ $fileUrl }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="evidence-item evidence-item-file"
+                                aria-label="Open submitted file {{ $fileName }}"
+                            >
+                                <div class="evidence-file-meta">
+                                    <strong>File</strong>
+                                    <span>{{ $fileName }}</span>
+                                </div>
+                            </a>
                         @endif
                     @endforeach
                 </div>
@@ -205,9 +243,23 @@
         @endif
     </section>
 
+    <div class="evidence-modal" id="evidenceModal" aria-hidden="true">
+        <div class="evidence-modal-backdrop" data-evidence-close></div>
+        <div class="evidence-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="evidenceModalTitle">
+            <div class="evidence-modal-header">
+                <h3 id="evidenceModalTitle">Submitted Evidence</h3>
+                <button type="button" class="evidence-modal-close" data-evidence-close aria-label="Close evidence viewer">&times;</button>
+            </div>
+            <div class="evidence-modal-body" id="evidenceModalBody"></div>
+            <div class="evidence-modal-footer">
+                <a id="evidenceModalOpenNewTab" class="file-link" target="_blank" rel="noopener noreferrer">Open file in new tab</a>
+            </div>
+        </div>
+    </div>
+
     <!-- Unified Department Student Discipline Officer Response Timeline -->
     <section id="admin-response-timeline" class="animate">
-        <h2>📋 Department Student Discipline Officer Response Timeline</h2>
+        <h2>📋 DSDO and Top Management Response Timeline</h2>
 
         @php
             $responses = $report->responses->sortByDesc('response_number');
@@ -346,3 +398,233 @@
         @endif
     </section>
 @endsection
+
+@push('styles')
+<style>
+    .evidence-trigger {
+        padding: 0;
+        width: 100%;
+        text-align: left;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .evidence-item-file {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 120px;
+        text-decoration: none;
+        color: #ffffff;
+        padding: 1rem;
+    }
+
+    .evidence-file-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        width: 100%;
+    }
+
+    .evidence-file-meta strong {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.85);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .evidence-file-meta span {
+        font-size: 0.95rem;
+        color: #ffffff;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .evidence-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: 1rem;
+    }
+
+    .evidence-modal.show {
+        display: flex;
+    }
+
+    .evidence-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+    }
+
+    .evidence-modal-dialog {
+        position: relative;
+        width: min(980px, 100%);
+        max-height: 90vh;
+        background: #102a73;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 0.85rem;
+        overflow: hidden;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .evidence-modal-header,
+    .evidence-modal-footer {
+        padding: 0.85rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .evidence-modal-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 0;
+    }
+
+    .evidence-modal-header h3 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .evidence-modal-close {
+        border: 0;
+        background: transparent;
+        color: #ffffff;
+        font-size: 1.8rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .evidence-modal-body {
+        padding: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+    }
+
+    .evidence-modal-body img,
+    .evidence-modal-body video,
+    .evidence-modal-body iframe {
+        max-width: 100%;
+        max-height: calc(90vh - 170px);
+        border: 0;
+        border-radius: 0.4rem;
+        background: #0a163e;
+    }
+
+    body.evidence-modal-open {
+        overflow: hidden;
+    }
+
+    @media (max-width: 768px) {
+        .evidence-modal {
+            padding: 0.5rem;
+        }
+
+        .evidence-modal-dialog {
+            max-height: 94vh;
+        }
+
+        .evidence-modal-header,
+        .evidence-modal-footer {
+            padding: 0.7rem 0.8rem;
+        }
+
+        .evidence-modal-body {
+            padding: 0.5rem;
+        }
+
+        .evidence-modal-body img,
+        .evidence-modal-body video,
+        .evidence-modal-body iframe {
+            max-height: calc(94vh - 145px);
+        }
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+    (function () {
+        const modal = document.getElementById('evidenceModal');
+        const modalBody = document.getElementById('evidenceModalBody');
+        const modalOpenNewTab = document.getElementById('evidenceModalOpenNewTab');
+
+        if (!modal || !modalBody || !modalOpenNewTab) {
+            return;
+        }
+
+        const closeModal = function () {
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('evidence-modal-open');
+            modalBody.innerHTML = '';
+            modalOpenNewTab.removeAttribute('href');
+        };
+
+        const openModal = function (type, url, name) {
+            if (!url) {
+                return;
+            }
+
+            modalBody.innerHTML = '';
+            const title = document.getElementById('evidenceModalTitle');
+            if (title && name) {
+                title.textContent = name;
+            }
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = name || 'Submitted evidence image';
+                modalBody.appendChild(img);
+            } else if (type === 'video') {
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                video.autoplay = true;
+                modalBody.appendChild(video);
+            } else {
+                const frame = document.createElement('iframe');
+                frame.src = url;
+                frame.title = name || 'Submitted evidence file';
+                modalBody.appendChild(frame);
+            }
+
+            modalOpenNewTab.href = url;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('evidence-modal-open');
+        };
+
+        document.querySelectorAll('.evidence-trigger').forEach(function (trigger) {
+            trigger.addEventListener('click', function () {
+                const type = trigger.getAttribute('data-evidence-type') || 'image';
+                const url = trigger.getAttribute('data-evidence-url') || '';
+                const name = trigger.getAttribute('data-evidence-name') || 'Submitted Evidence';
+                openModal(type, url, name);
+            });
+        });
+
+        modal.querySelectorAll('[data-evidence-close]').forEach(function (closer) {
+            closer.addEventListener('click', closeModal);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+    })();
+</script>
+@endpush

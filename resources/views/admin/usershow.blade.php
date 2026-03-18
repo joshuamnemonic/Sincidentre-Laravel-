@@ -4,15 +4,6 @@
 
 @section('page-title', '👤 User Details')
 
-@section('header-search')
-    <div style="display: flex; gap: 10px;">
-        <a href="{{ route('admin.users') }}" class="btn-back">← Back to Users</a>
-        @if(!$user->is_department_student_discipline_officer)
-            <a href="{{ route('admin.users.edit', $user->id) }}" class="btn-edit">✏️ Edit User</a>
-        @endif
-    </div>
-@endsection
-
 @section('content')
     @if(session('success'))
         <div class="alert alert-success">
@@ -105,7 +96,7 @@
 
         @if(!$user->is_department_student_discipline_officer)
             <h3 style="margin-top: 30px;">User Actions</h3>
-            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <div class="usershow-actions">
                 <a href="{{ route('admin.users.edit', $user->id) }}" class="btn-edit">
                     ✏️ Edit User
                 </a>
@@ -118,7 +109,7 @@
                         🗑️ Deactivate Account
                     </button>
                 @elseif($user->status === 'suspended')
-                    <form method="POST" action="{{ route('admin.users.activate', $user->id) }}" style="display:inline-block;">
+                    <form method="POST" action="{{ route('admin.users.activate', $user->id) }}" class="usershow-action-form">
                         @csrf
                         <button type="submit" class="btn-activate" onclick="return confirm('Reactivate this user?')">
                             ✅ Reactivate User
@@ -128,7 +119,7 @@
                         🗑️ Deactivate Account
                     </button>
                 @elseif($user->status === 'deactivated')
-                    <form method="POST" action="{{ route('admin.users.activate', $user->id) }}" style="display:inline-block;">
+                    <form method="POST" action="{{ route('admin.users.activate', $user->id) }}" class="usershow-action-form">
                         @csrf
                         <button type="submit" class="btn-activate" onclick="return confirm('Reactivate this user?')">
                             ✅ Reactivate Account
@@ -195,7 +186,23 @@
                                 </td>
                                 <td>{{ $report->submitted_at ? $report->submitted_at->format('M d, Y') : 'N/A' }}</td>
                                 <td>
-                                    <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View Report</a>
+                                    @php
+                                        $classification = (string) ($report->category->classification ?? '');
+                                        $isMajorOrGrave = in_array($classification, ['Major', 'Grave'], true);
+                                        $isDsdoOnly = (bool) (auth()->user()?->is_department_student_discipline_officer ?? false)
+                                            && !(bool) (auth()->user()?->is_top_management ?? false);
+                                    @endphp
+
+                                    @if($isMajorOrGrave && $isDsdoOnly)
+                                        <button type="button"
+                                                class="btn-view btn-top-management-notice"
+                                                data-report-id="{{ $report->id }}"
+                                                data-classification="{{ $classification }}">
+                                            View Report
+                                        </button>
+                                    @else
+                                        <a href="{{ route('admin.reports.show', $report->id) }}" class="btn-view">View Report</a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -224,6 +231,10 @@
                     <label>Reason for Suspension *</label>
                     <textarea name="reason" rows="4" placeholder="Explain why this user is being suspended..." required></textarea>
                 </div>
+                <div class="form-group">
+                    <label>Suspended Until *</label>
+                    <input type="datetime-local" name="suspended_until" required>
+                </div>
                 <button type="button" onclick="closeModal('suspendModal')">Cancel</button>
                 <button type="submit" class="btn-suspend">Suspend User</button>
             </form>
@@ -245,12 +256,23 @@
                     <ul>
                         <li>Prevent the user from logging in</li>
                         <li>Keep all their reports and data</li>
-                        <li>Allow reactivation later if needed</li>
+                        <li>Require manual reactivation by management</li>
                     </ul>
                 </div>
                 <div class="form-group">
-                    <label>Reason for Deactivation (Optional)</label>
-                    <textarea name="reason" rows="3" placeholder="Optional reason..."></textarea>
+                    <label>Deactivation Category *</label>
+                    <select name="deactivation_category" required>
+                        <option value="">Select category</option>
+                        <option value="graduated">Graduated</option>
+                        <option value="left_institution">Left Institution</option>
+                        <option value="duplicate_account">Duplicate Account</option>
+                        <option value="policy_violation">Policy Violation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Reason for Deactivation</label>
+                    <textarea name="reason" rows="3" placeholder="Add more context for records (optional)..."></textarea>
                 </div>
                 <button type="button" onclick="closeModal('deactivateModal')">Cancel</button>
                 <button type="submit" class="btn-delete">Deactivate Account</button>
@@ -258,6 +280,74 @@
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+    .usershow-actions {
+        margin-top: 0.95rem;
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .usershow-action-form {
+        display: inline-block;
+    }
+
+    .usershow-actions > a,
+    .usershow-actions > button,
+    .usershow-actions .usershow-action-form > button,
+    #suspendModal form > button,
+    #deactivateModal form > button {
+        min-height: 42px;
+        min-width: 200px;
+        padding: 0.7rem 1rem;
+        border-radius: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.2;
+        font-weight: 600;
+        box-sizing: border-box;
+        text-decoration: none;
+    }
+
+    #suspendModal form,
+    #deactivateModal form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+    }
+
+    #suspendModal form > p,
+    #deactivateModal form > p,
+    #deactivateModal .alert,
+    #suspendModal .form-group,
+    #deactivateModal .form-group {
+        width: 100%;
+    }
+
+    .btn-top-management-notice {
+        cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+        .usershow-actions {
+            gap: 0.5rem;
+        }
+
+        .usershow-actions > a,
+        .usershow-actions > button,
+        .usershow-actions .usershow-action-form > button,
+        #suspendModal form > button,
+        #deactivateModal form > button {
+            width: 100%;
+            min-width: 0;
+        }
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -272,6 +362,14 @@
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
     }
+
+    document.querySelectorAll('.btn-top-management-notice').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var reportId = this.getAttribute('data-report-id');
+            var classification = this.getAttribute('data-classification');
+            alert('Report #' + reportId + ' is classified as ' + classification + ' and is handled by Top Management. Please coordinate with Top Management for updates.');
+        });
+    });
 
     // Close modal when clicking outside
     window.onclick = function(event) {

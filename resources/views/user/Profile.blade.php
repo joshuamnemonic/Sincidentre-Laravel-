@@ -66,7 +66,17 @@
 
                 <div class="form-group">
                     <label for="profile_picture">Profile Picture</label>
-                    <input type="file" id="profile_picture" name="profile_picture" accept="image/jpeg,image/png,image/webp">
+                    <div class="profile-file-picker">
+                        <input
+                            type="file"
+                            id="profile_picture"
+                            name="profile_picture"
+                            class="visually-hidden-file"
+                            accept="image/jpeg,image/png,image/webp"
+                        >
+                        <label for="profile_picture" class="profile-file-button">Choose Profile Picture</label>
+                        <small id="profile-picture-file-name" class="profile-selected-file" aria-live="polite">No profile chosen</small>
+                    </div>
                     @error('profile_picture')
                         <small class="field-error">{{ $message }}</small>
                     @enderror
@@ -260,6 +270,7 @@
     <script>
         (function () {
             const profileInput = document.getElementById('profile_picture');
+            const profileFileName = document.getElementById('profile-picture-file-name');
             const previewTargets = [
                 document.getElementById('profile-picture-preview-main'),
                 document.getElementById('profile-picture-preview-form'),
@@ -268,6 +279,9 @@
             if (profileInput) {
                 profileInput.addEventListener('change', function (event) {
                     const file = event.target.files && event.target.files[0];
+                    if (profileFileName) {
+                        profileFileName.textContent = file ? file.name : 'No profile chosen';
+                    }
                     if (!file) {
                         return;
                     }

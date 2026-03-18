@@ -21,7 +21,7 @@
   <div class="brand-section">
     <div class="logo-wrapper">
       <!-- Replace 'logo.png' with your actual logo path -->
-      <img src="{{ asset('resources/images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="logo-image">
+      <img src="{{ asset('images/sincidentrelogo.png') }}" alt="Sincidentre Logo" class="logo-image">
     </div>
     <h1 class="brand-title">SINCIDENTRE</h1>
     <p class="brand-subtitle">School Incident Reporting System</p>
@@ -140,8 +140,8 @@
         </div>
       </div>
 
-      <div class="input-group">
-        <label for="register-email">
+      <div class="input-group" id="register-email-group">
+        <label for="register-email" id="register-email-label">
           <span class="label-icon">📧</span>
           LLCC Email
         </label>
@@ -152,7 +152,7 @@
                pattern=".+@llcc\.edu\.ph" 
                required
                autocomplete="email">
-        <small class="input-hint">Must be a valid @llcc.edu.ph email</small>
+        <small class="input-hint" id="register-email-hint">Must be a valid @llcc.edu.ph email</small>
       </div>
 
       <div class="input-group">
@@ -176,7 +176,7 @@
         </label>
         <select id="department" name="department_id">
           <option value="" disabled selected>Select your college</option>
-          @foreach(\App\Models\Department::all() as $department)
+          @foreach($departments as $department)
             <option value="{{ $department->id }}">{{ $department->name }}</option>
           @endforeach
         </select>
@@ -185,26 +185,20 @@
 
       <div id="employee-fields" style="display:none;">
         <div class="input-group">
-          <label for="employee-office">
-            <span class="label-icon">🏢</span>
-            Office / Unit
+          <label for="employee-access-code">
+            <span class="label-icon">🔐</span>
+            Code Provided by Top Management
           </label>
-          <input type="text"
-                 id="employee-office"
-                 name="employee_office"
-                 placeholder="e.g., HR Office"
-                 autocomplete="organization">
-        </div>
-
-        <div class="input-group">
-          <label for="employee-id-number">
-            <span class="label-icon">🆔</span>
-            Employee ID Number
+          <input type="password"
+                 id="employee-access-code"
+                 name="employee_access_code"
+                 placeholder="Enter provided access code"
+                 autocomplete="off">
+          <label for="show-employee-code" style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;font-size:0.85rem;color:#ffffff;">
+            <input type="checkbox" id="show-employee-code">
+            Show code while typing
           </label>
-          <input type="text"
-                 id="employee-id-number"
-                 name="employee_id_number"
-                 placeholder="e.g., EMP-2026-001">
+          <small class="input-hint">Enter the code issued by Top Management to auto-verify Employee/Staff registration.</small>
         </div>
       </div>
 
@@ -308,11 +302,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   const registrantType = document.getElementById('registrant-type');
+  const registerEmailGroup = document.getElementById('register-email-group');
+  const registerEmailLabel = document.getElementById('register-email-label');
+  const registerEmailHint = document.getElementById('register-email-hint');
   const studentFacultyFields = document.getElementById('student-faculty-fields');
   const employeeFields = document.getElementById('employee-fields');
   const department = document.getElementById('department');
-  const employeeOffice = document.getElementById('employee-office');
-  const employeeIdNumber = document.getElementById('employee-id-number');
+  const registerEmail = document.getElementById('register-email');
+  const employeeAccessCode = document.getElementById('employee-access-code');
+  const showEmployeeCode = document.getElementById('show-employee-code');
 
   function toggleRegistrantFields() {
     if (!registrantType) return;
@@ -327,6 +325,18 @@ document.addEventListener('DOMContentLoaded', function() {
       employeeFields.style.display = isEmployee ? 'block' : 'none';
     }
 
+    if (registerEmailGroup) {
+      registerEmailGroup.style.display = isEmployee ? 'none' : 'block';
+    }
+
+    if (registerEmailLabel && !isEmployee) {
+      registerEmailLabel.innerHTML = '<span class="label-icon">📧</span>LLCC Email';
+    }
+
+    if (registerEmailHint && !isEmployee) {
+      registerEmailHint.textContent = 'Must be a valid @llcc.edu.ph email';
+    }
+
     if (department) {
       department.required = !isEmployee;
       if (isEmployee) {
@@ -334,19 +344,34 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    if (employeeOffice) {
-      employeeOffice.required = isEmployee;
-      if (!isEmployee) {
-        employeeOffice.value = '';
+    if (registerEmail) {
+      registerEmail.required = !isEmployee;
+      if (isEmployee) {
+        registerEmail.value = '';
       }
     }
 
-    if (employeeIdNumber) {
-      employeeIdNumber.required = isEmployee;
+    if (employeeAccessCode) {
+      employeeAccessCode.required = isEmployee;
       if (!isEmployee) {
-        employeeIdNumber.value = '';
+        employeeAccessCode.value = '';
+        employeeAccessCode.type = 'password';
       }
     }
+
+    if (showEmployeeCode && !isEmployee) {
+      showEmployeeCode.checked = false;
+    }
+
+    if (showEmployeeCode && employeeAccessCode) {
+      employeeAccessCode.type = showEmployeeCode.checked ? 'text' : 'password';
+    }
+  }
+
+  if (showEmployeeCode && employeeAccessCode) {
+    showEmployeeCode.addEventListener('change', function () {
+      employeeAccessCode.type = this.checked ? 'text' : 'password';
+    });
   }
 
   if (registrantType) {

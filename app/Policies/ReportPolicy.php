@@ -17,7 +17,8 @@ class ReportPolicy
             return $this->isTopManagementAssignee($user, $report);
         }
 
-        return (int) $report->user?->department_id === (int) $user->department_id;
+        return (int) $report->user?->department_id === (int) $user->department_id
+            || $this->isReportAssignedToUser($user, $report);
     }
 
     public function decide(User $user, Report $report): bool
@@ -68,9 +69,23 @@ class ReportPolicy
             return $positionCode === $assignedPositionCode;
         }
 
+        return $this->isReportAssignedToUser($user, $report);
+    }
+
+    private function isReportAssignedToUser(User $user, Report $report): bool
+    {
         $reportAssignedTo = strtolower(trim((string) ($report->assigned_to ?? '')));
         $userFullName = strtolower(trim((string) (($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))));
+        $fallbackName = strtolower(trim((string) ($user->name ?? '')));
 
-        return $reportAssignedTo !== '' && $userFullName !== '' && $reportAssignedTo === $userFullName;
+        if ($reportAssignedTo === '') {
+            return false;
+        }
+
+        if ($userFullName !== '' && $reportAssignedTo === $userFullName) {
+            return true;
+        }
+
+        return $fallbackName !== '' && $reportAssignedTo === $fallbackName;
     }
 }

@@ -80,6 +80,16 @@
                     <option value="30d" {{ $range === '30d' ? 'selected' : '' }}>Last 30 days</option>
                     <option value="custom" {{ $range === 'custom' ? 'selected' : '' }}>Custom range</option>
                 </select>
+
+                <label for="status-filter" class="sr-only">Filter by status</label>
+                <select name="status" id="status-filter" class="status-dropdown" aria-label="Filter by status">
+                    <option value="">All Statuses</option>
+                    @foreach ($statusFlow as $status)
+                        <option value="{{ $status }}" {{ in_array($status, $selectedStatuses, true) ? 'selected' : '' }}>
+                            {{ $status }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="filter-row filter-row-custom-date {{ $range === 'custom' ? '' : 'hidden' }}" id="custom-date-range">
@@ -88,15 +98,6 @@
 
                 <label for="to">To</label>
                 <input type="date" id="to" name="to" value="{{ $to }}" max="{{ now()->toDateString() }}">
-            </div>
-
-            <div class="filter-row filter-row-status" role="group" aria-label="Filter by status">
-                @foreach ($statusFlow as $status)
-                    <label class="status-chip status-{{ $statusCssClass($status) }}">
-                        <input type="checkbox" name="status[]" value="{{ $status }}" {{ in_array($status, $selectedStatuses, true) ? 'checked' : '' }}>
-                        <span>{{ $status }}</span>
-                    </label>
-                @endforeach
             </div>
 
             <div class="filter-row filter-row-actions">
@@ -134,6 +135,7 @@
                         </th>
                         <th>Time of Incident</th>
                         <th>Location</th>
+                        <th>Please Specify</th>
                         <th>
                             <a href="{{ $sortUrl('status') }}" class="sort-link">
                                 Status
@@ -160,6 +162,7 @@
                             <td>{{ optional($report->incident_date)->format('M d, Y') }}</td>
                             <td>{{ optional($report->incident_time)->format('h:i A') }}</td>
                             <td>{!! $renderHighlight($report->location) !!}</td>
+                            <td>{!! $renderHighlight($report->location_details ?? 'N/A') !!}</td>
                             <td>
                                 <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">{{ $report->status }}</span>
                             </td>
@@ -167,7 +170,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="empty-state">No reports found. Try changing your search text, filters, or date range.</td>
+                            <td colspan="8" class="empty-state">No reports found. Try changing your search text, filters, or date range.</td>
                         </tr>
                     @endforelse
                 </tbody>

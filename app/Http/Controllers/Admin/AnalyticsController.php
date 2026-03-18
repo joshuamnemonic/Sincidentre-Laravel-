@@ -77,6 +77,11 @@ class AnalyticsController extends Controller
 
         // Location hotspots
         $locationHotspots = $this->getLocationHotspots($departmentId, $dateRange);
+        $locationDetailsMap = $this->getLocationHotspotDetailsMap($departmentId, $dateRange, $locationHotspots);
+        $selectedLocation = trim((string) $request->get('location', ''));
+        $locationHotspotDetails = $selectedLocation !== ''
+            ? ($locationDetailsMap[$selectedLocation] ?? collect())
+            : collect();
 
         // Performance metrics
         $avgTimeToApprove = $this->getAverageTimeToApprove($departmentId);
@@ -102,6 +107,9 @@ class AnalyticsController extends Controller
             'topCategories',
             'frequentReporters',
             'locationHotspots',
+            'locationHotspotDetails',
+            'locationDetailsMap',
+            'selectedLocation',
             'avgTimeToApprove',
             'avgTimeToResolve',
             'overdueReports',
@@ -194,7 +202,7 @@ class AnalyticsController extends Controller
                 $alerts[] = [
                     'title' => 'Frequent Reporter Detected',
                     'message' => "{$reporter->user->first_name} {$reporter->user->last_name} has submitted {$reporter->report_count} reports in this period. May need support or intervention.",
-                    'link' => route('admin.reports') . '?reporter=' . urlencode($reporter->user->first_name)
+                    'link' => route('admin.users.show', $reporter->user_id)
                 ];
             }
         }
@@ -320,15 +328,36 @@ class AnalyticsController extends Controller
 
     private function getStatusData($departmentId, $dateRange)
     {
-        $statuses = Report::select('status', DB::raw('COUNT(*) as count'))
+        $statusRows = Report::select('status', DB::raw('COUNT(*) as count'))
             ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('status')
             ->get();
 
+        $orderedStatuses = [
+            Report::STATUS_PENDING,
+            Report::STATUS_APPROVED,
+            Report::STATUS_REJECTED,
+            Report::STATUS_UNDER_REVIEW,
+            Report::STATUS_RESOLVED,
+        ];
+
+        $countsByStatus = [];
+        foreach ($statusRows as $row) {
+            $normalized = Report::normalizeStatus($row->status);
+            $countsByStatus[$normalized] = ($countsByStatus[$normalized] ?? 0) + (int) $row->count;
+        }
+
+        $labels = [];
+        $data = [];
+        foreach ($orderedStatuses as $status) {
+            $labels[] = Report::labelForStatus($status);
+            $data[] = (int) ($countsByStatus[$status] ?? 0);
+        }
+
         return [
-            'labels' => $statuses->pluck('status')->map(fn($status) => Report::labelForStatus($status))->toArray(),
-            'data' => $statuses->pluck('count')->toArray()
+            'labels' => $labels,
+            'data' => $data,
         ];
     }
 
@@ -369,6 +398,7 @@ class AnalyticsController extends Controller
     private function getFrequentReporters($departmentId, $dateRange)
     {
         return Report::select(
+                'reports.user_id',
                 DB::raw("CONCAT(users.first_name, ' ', users.last_name) as reporter_name"),
                 DB::raw('COUNT(*) as report_count')
             )
@@ -393,6 +423,75 @@ class AnalyticsController extends Controller
             ->orderByDesc('incident_count')
             ->limit(10)
             ->get();
+    }
+
+    private function getLocationHotspotDetails($departmentId, $dateRange, $location)
+    {
+        $location = trim((string) $location);
+
+        if ($location === '') {
+            return collect();
+        }
+
+        $detailCounts = Report::select('location_details')
+            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
+            ->where('location', $location)
+            ->get()
+            ->map(function ($report) {
+                $detailLabel = trim((string) ($report->location_details ?? ''));
+
+                return $detailLabel === '' ? 'No details provided' : $detailLabel;
+            })
+            ->countBy();
+
+        return $detailCounts
+            ->sortDesc()
+            ->map(function ($count, $detailLabel) {
+                return (object) [
+                    'detail_label' => $detailLabel,
+                    'detail_count' => $count,
+                ];
+            })
+            ->values();
+    }
+
+    private function getLocationHotspotDetailsMap($departmentId, $dateRange, $locationHotspots)
+    {
+        $locations = collect($locationHotspots)
+            ->pluck('location')
+            ->filter(fn($location) => trim((string) $location) !== '')
+            ->values();
+
+        if ($locations->isEmpty()) {
+            return [];
+        }
+
+        $rows = Report::select('location', 'location_details', DB::raw('COUNT(*) as detail_count'))
+            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+            ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
+            ->whereIn('location', $locations)
+            ->groupBy('location', 'location_details')
+            ->orderByDesc('detail_count')
+            ->get();
+
+        $detailsMap = [];
+        foreach ($locations as $location) {
+            $detailsMap[$location] = collect();
+        }
+
+        foreach ($rows as $row) {
+            $location = (string) $row->location;
+            $label = trim((string) ($row->location_details ?? ''));
+            $detailLabel = $label === '' ? 'No details provided' : $label;
+
+            $detailsMap[$location] = $detailsMap[$location]->push((object) [
+                'detail_label' => $detailLabel,
+                'detail_count' => (int) $row->detail_count,
+            ]);
+        }
+
+        return $detailsMap;
     }
 
     private function getAverageTimeToApprove($departmentId)
@@ -496,21 +595,41 @@ class AnalyticsController extends Controller
         $departmentId = $admin->department_id;
         $dateRange = $this->getDateRange($period, $request);
 
-        $reports = Report::with(['user', 'category'])
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $baseQuery = Report::whereHas('user', function($q) use ($departmentId) {
+            $q->where('department_id', $departmentId);
+        });
+
+        $totalReports = (clone $baseQuery)->count();
+        $periodReports = (clone $baseQuery)
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
-            ->get();
+            ->count();
+
+        $statusData = $this->getStatusData($departmentId, $dateRange);
+        $topCategories = $this->getTopCategories($departmentId, $dateRange);
+        $locationHotspots = $this->getLocationHotspots($departmentId, $dateRange);
+        $overdueReports = $this->getOverdueReports($departmentId);
+
+        $analyticsSnapshot = [
+            'period_start' => $dateRange['start']->format('Y-m-d'),
+            'period_end' => $dateRange['end']->format('Y-m-d'),
+            'total_reports_all_time' => $totalReports,
+            'reports_in_selected_period' => $periodReports,
+            'overdue_reports' => $overdueReports,
+            'status_data' => $statusData,
+            'top_categories' => $topCategories,
+            'location_hotspots' => $locationHotspots,
+        ];
 
         if ($format === 'csv') {
-            return $this->exportCSV($reports);
+            return $this->exportCSV($analyticsSnapshot);
         } elseif ($format === 'pdf') {
-            return $this->exportPDF($reports, $dateRange);
+            return $this->exportPDF($analyticsSnapshot);
         }
 
         return redirect()->back();
     }
 
-    private function exportCSV($reports)
+    private function exportCSV(array $snapshot)
     {
         $filename = 'analytics_export_' . date('Y-m-d_His') . '.csv';
         
@@ -519,33 +638,33 @@ class AnalyticsController extends Controller
             'Content-Disposition' => "attachment; filename=\"$filename\"",
         ];
 
-        $callback = function() use ($reports) {
+        $callback = function() use ($snapshot) {
             $file = fopen('php://output', 'w');
-            
-            // Headers
-            fputcsv($file, [
-                'Report ID',
-                'Category',
-                'Reporter',
-                'Location',
-                'Status',
-                'Created At',
-                'Resolved At'
-            ]);
 
-            // Data
-            foreach ($reports as $report) {
-                fputcsv($file, [
-                    $report->id,
-                    $report->category->name ?? 'N/A',
-                    ($report->user->first_name ?? '') . ' ' . ($report->user->last_name ?? ''),
-                    $report->location ?? 'N/A',
-                    Report::labelForStatus($report->status),
-                    $report->created_at->format('Y-m-d H:i:s'),
-                    Report::normalizeStatus($report->status) === Report::STATUS_RESOLVED
-                        ? $report->updated_at->format('Y-m-d H:i:s')
-                        : 'N/A'
-                ]);
+            fputcsv($file, ['Section', 'Key', 'Value']);
+            fputcsv($file, ['Overview', 'Period Start', $snapshot['period_start']]);
+            fputcsv($file, ['Overview', 'Period End', $snapshot['period_end']]);
+            fputcsv($file, ['Overview', 'Total Reports (All Time)', $snapshot['total_reports_all_time']]);
+            fputcsv($file, ['Overview', 'Reports in Selected Period', $snapshot['reports_in_selected_period']]);
+            fputcsv($file, ['Overview', 'Overdue Reports (>3 days)', $snapshot['overdue_reports']]);
+
+            fputcsv($file, []);
+            fputcsv($file, ['Status Distribution', 'Status', 'Count']);
+            foreach (($snapshot['status_data']['labels'] ?? []) as $index => $label) {
+                $count = $snapshot['status_data']['data'][$index] ?? 0;
+                fputcsv($file, ['Status Distribution', $label, $count]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, ['Top Categories', 'Category', 'Count']);
+            foreach ($snapshot['top_categories'] as $category) {
+                fputcsv($file, ['Top Categories', $category->category_name, $category->total]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, ['Location Hotspots', 'Location', 'Incidents']);
+            foreach ($snapshot['location_hotspots'] as $hotspot) {
+                fputcsv($file, ['Location Hotspots', $hotspot->location, $hotspot->incident_count]);
             }
 
             fclose($file);
@@ -554,17 +673,31 @@ class AnalyticsController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    private function exportPDF($reports, $dateRange)
+    private function exportPDF(array $snapshot)
     {
         // This is a placeholder - you would typically use a PDF library like DomPDF or TCPDF
         // For now, we'll return a simple text response
-        
-        $content = "Analytics Report\n";
-        $content .= "Period: " . $dateRange['start']->format('Y-m-d') . " to " . $dateRange['end']->format('Y-m-d') . "\n";
-        $content .= "Total Reports: " . $reports->count() . "\n\n";
-        
-        foreach ($reports as $report) {
-            $content .= "#{$report->id} - " . Report::labelForStatus($report->status) . "\n";
+
+        $content = "Analytics & Insights Summary\n";
+        $content .= "Period: {$snapshot['period_start']} to {$snapshot['period_end']}\n";
+        $content .= "Total Reports (All Time): {$snapshot['total_reports_all_time']}\n";
+        $content .= "Reports in Selected Period: {$snapshot['reports_in_selected_period']}\n";
+        $content .= "Overdue Reports (>3 days): {$snapshot['overdue_reports']}\n\n";
+
+        $content .= "Status Distribution:\n";
+        foreach (($snapshot['status_data']['labels'] ?? []) as $index => $label) {
+            $count = $snapshot['status_data']['data'][$index] ?? 0;
+            $content .= "- {$label}: {$count}\n";
+        }
+
+        $content .= "\nTop Categories:\n";
+        foreach ($snapshot['top_categories'] as $category) {
+            $content .= "- {$category->category_name}: {$category->total}\n";
+        }
+
+        $content .= "\nLocation Hotspots:\n";
+        foreach ($snapshot['location_hotspots'] as $hotspot) {
+            $content .= "- {$hotspot->location}: {$hotspot->incident_count}\n";
         }
 
         return response($content, 200, [

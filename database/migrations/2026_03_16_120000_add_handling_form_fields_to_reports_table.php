@@ -70,6 +70,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('reports')) {
+            return;
+        }
+
         Schema::table('reports', function (Blueprint $table) {
             if (Schema::hasColumn('reports', 'respondent_notified_by')) {
                 $table->dropForeign(['respondent_notified_by']);
@@ -81,7 +85,7 @@ return new class extends Migration
                 $table->dropForeign(['suspension_issued_by']);
             }
 
-            $table->dropColumn([
+            foreach ([
                 'hearing_date',
                 'hearing_time',
                 'hearing_venue',
@@ -99,7 +103,11 @@ return new class extends Migration
                 'disciplinary_action',
                 'suspension_issued_by',
                 'suspension_issued_at',
-            ]);
+            ] as $column) {
+                if (Schema::hasColumn('reports', $column)) {
+                    $table->dropColumn($column);
+                }
+            }
         });
     }
 };

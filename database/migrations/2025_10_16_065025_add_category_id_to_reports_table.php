@@ -9,23 +9,28 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
-{
-    Schema::table('reports', function (Blueprint $table) {
-        $table->foreignId('category_id')
-              ->after('title')
-              ->constrained('categories')
-              ->onDelete('restrict');
-    });
-}
+    public function up(): void
+    {
+        if (!Schema::hasColumn('reports', 'category_id')) {
+            Schema::table('reports', function (Blueprint $table) {
+                $table->foreignId('category_id')
+                    ->after('title')
+                    ->constrained('categories')
+                    ->onDelete('restrict');
+            });
+        }
+    }
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('reports', function (Blueprint $table) {
-            //
-        });
+        if (Schema::hasColumn('reports', 'category_id')) {
+            Schema::table('reports', function (Blueprint $table) {
+                $table->dropForeign(['category_id']);
+                $table->dropColumn('category_id');
+            });
+        }
     }
 };

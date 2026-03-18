@@ -6,16 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
+        if (!Schema::hasTable('reports') || Schema::hasColumn('reports', 'handled_by')) {
+            return;
+        }
+
         Schema::table('reports', function (Blueprint $table) {
             $table->unsignedBigInteger('handled_by')->nullable()->after('status');
             $table->foreign('handled_by')->references('id')->on('users')->onDelete('set null');
         });
     }
 
-    public function down()
+    public function down(): void
     {
+        if (!Schema::hasTable('reports') || !Schema::hasColumn('reports', 'handled_by')) {
+            return;
+        }
+
         Schema::table('reports', function (Blueprint $table) {
             $table->dropForeign(['handled_by']);
             $table->dropColumn('handled_by');

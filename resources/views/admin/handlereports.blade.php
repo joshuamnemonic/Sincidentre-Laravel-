@@ -5,7 +5,15 @@
 @section('page-title', 'Handle Reports')
 
 @section('header-search')
-    <input type="search" placeholder="Search reports...">
+    <form method="GET" action="{{ route('admin.handlereports') }}" class="handle-header-search">
+        @if(request()->filled('status'))
+            <input type="hidden" name="status" value="{{ request('status') }}">
+        @endif
+        @if(request()->filled('category'))
+            <input type="hidden" name="category" value="{{ request('category') }}">
+        @endif
+        <input type="search" name="search" value="{{ request('search') }}" placeholder="Search reports..." aria-label="Search reports">
+    </form>
 @endsection
 
 @section('content')
@@ -21,32 +29,29 @@
         </div>
     @endif
 
-     <!-- Report Flow + Handle Reports Table -->
+     <!-- Filters + Handle Reports Table -->
     <section id="handle-reports"> 
-          <div class="report-flow-card">
-                <h2>Report Flow</h2>
-                <div class="report-flow-track">
-                     <a href="{{ route('admin.reports') }}" class="flow-chip">Pending</a>
-                     <span class="flow-separator">&gt;</span>
-                     <a href="{{ route('admin.handlereports', ['status' => 'approved']) }}" class="flow-chip {{ ($selectedStatus ?? '') === 'approved' ? 'is-active' : '' }}">Approved</a>
-                     <span class="flow-separator">/</span>
-                     <a href="{{ route('admin.handlereports', ['status' => 'rejected']) }}" class="flow-chip {{ ($selectedStatus ?? '') === 'rejected' ? 'is-active' : '' }}">Rejected</a>
-                     <span class="flow-separator">&gt;</span>
-                     <a href="{{ route('admin.handlereports', ['status' => 'under review']) }}" class="flow-chip {{ ($selectedStatus ?? '') === 'under review' ? 'is-active' : '' }}">Under Review</a>
-                     <span class="flow-separator">&gt;</span>
-                     <a href="{{ route('admin.handlereports', ['status' => 'resolved']) }}" class="flow-chip {{ ($selectedStatus ?? '') === 'resolved' ? 'is-active' : '' }}">Resolved</a>
-                     <a href="{{ route('admin.handlereports') }}" class="flow-clear">Show All</a>
-                </div>
-          </div>
-
         <!-- Filter Form -->
-        <div class="filter-container" style="margin-bottom: 20px;">
-            <form method="GET" action="{{ route('admin.handlereports') }}" style="display: flex; gap: 10px; align-items: center;">
-                @if(($selectedStatus ?? '') !== '')
-                    <input type="hidden" name="status" value="{{ $selectedStatus }}">
+        <div class="filter-container handle-filter-wrap">
+            <form method="GET" action="{{ route('admin.handlereports') }}" class="handle-filter-form">
+                @if(request()->filled('search'))
+                    <input type="hidden" name="search" value="{{ request('search') }}">
                 @endif
-                <label for="category_filter">Filter by Category:</label>
-                <select name="category" id="category_filter" style="padding: 8px; min-width: 200px;">
+
+                <div class="handle-filter-field">
+                    <label for="status_filter">Filter by Status:</label>
+                    <select name="status" id="status_filter">
+                    <option value="">All Statuses</option>
+                    <option value="approved" {{ ($selectedStatus ?? '') === 'approved' ? 'selected' : '' }}>Approved</option>
+                    <option value="rejected" {{ ($selectedStatus ?? '') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                    <option value="under review" {{ ($selectedStatus ?? '') === 'under review' ? 'selected' : '' }}>Under Review</option>
+                    <option value="resolved" {{ ($selectedStatus ?? '') === 'resolved' ? 'selected' : '' }}>Resolved</option>
+                </select>
+                </div>
+
+                <div class="handle-filter-field">
+                    <label for="category_filter">Filter by Category:</label>
+                    <select name="category" id="category_filter">
                     <option value="">All Categories</option>
                     @foreach($categories as $category)
                         <option value="{{ $category->id }}" {{ request('category') == $category->id ? 'selected' : '' }}>
@@ -54,10 +59,14 @@
                         </option>
                     @endforeach
                 </select>
-                <button type="submit" class="btn-filter" style="padding: 8px 16px;">Apply Filter</button>
-                @if(request('category'))
-                    <a href="{{ route('admin.handlereports', array_filter(['status' => $selectedStatus ?? ''])) }}" class="btn-clear" style="padding: 8px 16px; text-decoration: none;">Clear Filter</a>
+                </div>
+
+                <div class="handle-filter-actions">
+                    <button type="submit" class="btn-filter">Apply Filter</button>
+                @if(request()->filled('category') || ($selectedStatus ?? '') !== '' || request()->filled('search'))
+                    <a href="{{ route('admin.handlereports') }}" class="btn-clear">Clear Filter</a>
                 @endif
+                </div>
             </form>
         </div>
 
@@ -102,7 +111,7 @@
                             @if(($selectedStatus ?? '') !== '')
                                 No {{ ucwords(str_replace('_', ' ', $selectedStatus)) }} reports found.
                             @else
-                                No reports found for this flow stage.
+                                No reports found.
                             @endif
                         </td>
                     </tr>
@@ -158,52 +167,61 @@
 
 @push('styles')
 <style>
-    .report-flow-card {
-        margin-bottom: 20px;
-        padding: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.24);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.08);
+    .handle-header-search {
+        display: flex;
+        gap: 8px;
+        align-items: center;
     }
 
-    .report-flow-track {
+    .handle-filter-wrap {
+        margin-bottom: 20px;
+    }
+
+    .handle-filter-form {
+        display: flex;
+        gap: 12px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .handle-filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 210px;
+        flex: 1 1 240px;
+    }
+
+    .handle-filter-field label {
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .handle-filter-field select {
+        width: 100%;
+        min-height: 44px;
+        padding: 0.7rem 0.9rem;
+        background: #ffffff;
+        color: #1f2937;
+        border: 2px solid var(--glass-border);
+        border-radius: 0.6rem;
+    }
+
+    .handle-filter-actions {
         display: flex;
         align-items: center;
         gap: 10px;
         flex-wrap: wrap;
     }
 
-    .flow-chip {
-        padding: 8px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 999px;
+    .handle-filter-actions .btn-filter,
+    .handle-filter-actions .btn-clear {
+        min-height: 44px;
+        padding: 0.7rem 1rem;
         text-decoration: none;
-        color: #fff;
-        background: rgba(255, 255, 255, 0.08);
-        transition: all 0.15s ease-in-out;
-    }
-
-    .flow-chip:hover {
-        background: rgba(255, 255, 255, 0.2);
-        border-color: rgba(255, 255, 255, 0.7);
-    }
-
-    .flow-chip.is-active {
-        font-weight: 700;
-        border-color: #ffffff;
-        background: rgba(255, 255, 255, 0.26);
-    }
-
-    .flow-separator {
-        color: rgba(255, 255, 255, 0.7);
-        font-weight: 700;
-    }
-
-    .flow-clear {
-        margin-left: 8px;
-        text-decoration: underline;
-        color: #fff;
-        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .escalated-view-only-section {
@@ -217,17 +235,35 @@
     }
 
     @media (max-width: 768px) {
-        .report-flow-track {
-            gap: 8px;
+        .handle-header-search {
+            width: 100%;
         }
 
-        .flow-chip {
-            font-size: 13px;
-            padding: 7px 10px;
+        .handle-header-search input {
+            width: 100%;
+            min-width: 0;
         }
 
-        .flow-clear {
-            margin-left: 0;
+        .handle-filter-form {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .handle-filter-field {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .handle-filter-actions {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .handle-filter-actions .btn-filter,
+        .handle-filter-actions .btn-clear {
+            width: 100%;
         }
     }
 </style>

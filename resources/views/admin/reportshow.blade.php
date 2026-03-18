@@ -61,6 +61,10 @@
                 <td>{{ $report->location ?: 'N/A' }}</td>
             </tr>
             <tr>
+                <th>Please Specify</th>
+                <td>{{ $report->location_details ?: 'N/A' }}</td>
+            </tr>
+            <tr>
                 <th>Person Involvement</th>
                 <td>{{ $report->person_involvement ? ucfirst($report->person_involvement) : 'N/A' }}</td>
             </tr>
@@ -89,6 +93,181 @@
                     {{ $report->created_at->format('F d, Y') }}
                     <small style="color: #999;">({{ $report->created_at->diffForHumans() }})</small>
                 </td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="reporter-info handle-section">
+        <h3>Section 1: Information About the Person/s Involved in the Incident</h3>
+        <table class="handle-report-table">
+            <tr>
+                <th>Reported Person Name</th>
+                <td>{{ $report->person_full_name ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Reported Person College/Department</th>
+                <td>{{ $report->person_college_department ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Reported Person Role</th>
+                <td>{{ $report->person_role ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Reported Person Contact Number</th>
+                <td>{{ $report->person_contact_number ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Reported Person Email</th>
+                <td>{{ $report->person_email_address ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Multiple Persons Involved</th>
+                <td>{{ $report->person_has_multiple ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Unknown Person Details</th>
+                <td>{{ $report->unknown_person_details ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Technical/Facility Details</th>
+                <td>{{ $report->technical_facility_details ?? 'N/A' }}</td>
+            </tr>
+        </table>
+
+        @if(is_array($report->additional_persons) && count($report->additional_persons) > 0)
+            <h3>Additional Involved Persons</h3>
+            <table class="handle-report-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>College/Department</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($report->additional_persons as $index => $person)
+                        @php
+                            $resolvedAdditionalPersonName = trim((string) (
+                                $person['full_name']
+                                ?? $person['name']
+                                ?? $person['person_full_name']
+                                ?? $person['fullname']
+                                ?? $person['fullName']
+                                ?? ''
+                            ));
+                            $resolvedAdditionalPersonDept = trim((string) (
+                                $person['college_department']
+                                ?? $person['department']
+                                ?? $person['person_college_department']
+                                ?? ''
+                            ));
+                            $resolvedAdditionalPersonRole = trim((string) (
+                                $person['role']
+                                ?? $person['person_role']
+                                ?? $person['id_number']
+                                ?? ''
+                            ));
+                            $resolvedAdditionalPersonEmail = trim((string) (
+                                $person['email_address']
+                                ?? $person['email']
+                                ?? $person['person_email_address']
+                                ?? ''
+                            ));
+                        @endphp
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $resolvedAdditionalPersonName !== '' ? $resolvedAdditionalPersonName : 'N/A' }}</td>
+                            <td>{{ $resolvedAdditionalPersonDept !== '' ? $resolvedAdditionalPersonDept : 'N/A' }}</td>
+                            <td>{{ $resolvedAdditionalPersonRole !== '' ? $resolvedAdditionalPersonRole : 'N/A' }}</td>
+                            <td>{{ $resolvedAdditionalPersonEmail !== '' ? $resolvedAdditionalPersonEmail : 'N/A' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </section>
+
+    <section class="reporter-info handle-section">
+        <h3>Section 2: Information About the Incident</h3>
+        <table class="handle-report-table">
+            <tr>
+                <th>Were There Any Witnesses?</th>
+                <td>{{ $report->has_witnesses ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Witness Details</th>
+                <td>
+                    @if(is_array($report->witness_details) && count($report->witness_details) > 0)
+                        <ul>
+                            @foreach($report->witness_details as $witness)
+                                <li>
+                                    {{ $witness['name'] ?? ($witness['full_name'] ?? 'Unnamed Witness') }}
+                                    @if(!empty($witness['address'])) - {{ $witness['address'] }} @endif
+                                    @if(!empty($witness['college_department'])) - {{ $witness['college_department'] }} @endif
+                                    @if(!empty($witness['role'])) ({{ $witness['role'] }}) @endif
+                                    @if(!empty($witness['contact_number'])) | {{ $witness['contact_number'] }} @endif
+                                    @if(!empty($witness['email_address'])) | {{ $witness['email_address'] }} @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        N/A
+                    @endif
+                </td>
+            </tr>
+            <tr>
+                <th>Additional Incident Sheets</th>
+                <td>
+                    @if($report->incident_additional_sheets)
+                        @php
+                            $sheetFiles = is_array($report->incident_additional_sheets)
+                                ? $report->incident_additional_sheets
+                                : json_decode((string) $report->incident_additional_sheets, true);
+                            $sheetFiles = is_array($sheetFiles) ? $sheetFiles : [];
+                        @endphp
+                        @if(count($sheetFiles) > 0)
+                            <ul>
+                                @foreach($sheetFiles as $sheetIndex => $sheetFile)
+                                    <li>
+                                        <a href="{{ asset('storage/' . $sheetFile) }}" target="_blank">View Additional Sheet {{ $sheetIndex + 1 }}</a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            N/A
+                        @endif
+                    @else
+                        N/A
+                    @endif
+                </td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="reporter-info handle-section">
+        <h3>Section 3: Information About the Informant</h3>
+        <table class="handle-report-table">
+            <tr>
+                <th>Informant Full Name</th>
+                <td>{{ $report->informant_full_name ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Informant College/Department</th>
+                <td>{{ $report->informant_college_department ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Informant Role</th>
+                <td>{{ $report->informant_role ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Informant Contact Number</th>
+                <td>{{ $report->informant_contact_number ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Informant Email Address</th>
+                <td>{{ $report->informant_email_address ?? 'N/A' }}</td>
             </tr>
         </table>
     </section>

@@ -31,7 +31,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'otp_locked_until',
         'suspension_reason',
         'suspended_at',
+        'suspended_until',
         'suspended_by',
+        'deactivation_category',
+        'deactivated_at',
     ];
 
     protected $hidden = [
@@ -44,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verification_otp_expires_at' => 'datetime',
         'otp_locked_until' => 'datetime',
         'suspended_at' => 'datetime',
+        'suspended_until' => 'datetime',
+        'deactivated_at' => 'datetime',
         'is_department_student_discipline_officer' => 'integer',
         'is_top_management' => 'integer',
     ];

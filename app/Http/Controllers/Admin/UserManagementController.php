@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
@@ -20,7 +21,7 @@ class UserManagementController extends Controller
 
         $normalized = strtolower($name);
         $knownShortNames = [
-            'college of teacher education' => 'CoT',
+            'college of technology' => 'CoT',
             'college of education' => 'CoED',
             'college of hospitality and tourism management' => 'CoHTM',
         ];
@@ -223,13 +224,17 @@ class UserManagementController extends Controller
 
         $request->validate([
             'reason' => 'required|string|max:500',
+            'suspended_until' => 'required|date|after:now',
         ]);
 
         $user->update([
             'status' => 'suspended',
             'suspension_reason' => $request->reason,
             'suspended_at' => now(),
+            'suspended_until' => $request->date('suspended_until'),
             'suspended_by' => Auth::id(),
+            'deactivation_category' => null,
+            'deactivated_at' => null,
         ]);
 
         // Log the action
@@ -237,7 +242,7 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'action' => 'User Suspended',
             'performed_by' => Auth::id(),
-            'remarks' => 'Reason: ' . $request->reason,
+            'remarks' => 'Reason: ' . $request->reason . ' | Until: ' . optional($request->date('suspended_until'))->format('M d, Y h:i A'),
         ]);
 
         return redirect()
@@ -259,7 +264,10 @@ class UserManagementController extends Controller
             'status' => 'active',
             'suspension_reason' => null,
             'suspended_at' => null,
+            'suspended_until' => null,
             'suspended_by' => null,
+            'deactivation_category' => null,
+            'deactivated_at' => null,
         ]);
 
         // Log the action
@@ -299,11 +307,37 @@ class UserManagementController extends Controller
                 ->with('error', 'You cannot deactivate your own account.');
         }
 
+        $request->validate([
+            'deactivation_category' => [
+                'required',
+                Rule::in(['graduated', 'left_institution', 'duplicate_account', 'policy_violation', 'other']),
+            ],
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $deactivationCategoryLabels = [
+            'graduated' => 'Graduated',
+            'left_institution' => 'Left Institution',
+            'duplicate_account' => 'Duplicate Account',
+            'policy_violation' => 'Policy Violation',
+            'other' => 'Other',
+        ];
+
+        $categoryCode = (string) $request->input('deactivation_category');
+        $categoryLabel = $deactivationCategoryLabels[$categoryCode] ?? 'Other';
+        $reason = trim((string) $request->input('reason', ''));
+        $finalReason = $reason !== ''
+            ? $reason
+            : ('Account deactivated by Department Student Discipline Officer. Category: ' . $categoryLabel);
+
         $user->update([
             'status' => 'deactivated',
-            'suspension_reason' => $request->reason ?? 'Account deactivated by Department Student Discipline Officer',
+            'suspension_reason' => $finalReason,
             'suspended_at' => now(),
+            'suspended_until' => null,
             'suspended_by' => Auth::id(),
+            'deactivation_category' => $categoryCode,
+            'deactivated_at' => now(),
         ]);
 
         // Log the action
@@ -311,7 +345,7 @@ class UserManagementController extends Controller
             'user_id' => $user->id,
             'action' => 'User Deactivated',
             'performed_by' => Auth::id(),
-            'remarks' => $request->reason ?? 'Account deactivated by Department Student Discipline Officer',
+            'remarks' => 'Category: ' . $categoryLabel . ' | Reason: ' . $finalReason,
         ]);
 
         return redirect()
@@ -325,6 +359,10 @@ class UserManagementController extends Controller
     public function destroy($id)
     {
         // Redirect to deactivate instead
+        if (!request()->filled('deactivation_category')) {
+            request()->merge(['deactivation_category' => 'other']);
+        }
+
         return $this->deactivate(request(), $id);
     }
 }

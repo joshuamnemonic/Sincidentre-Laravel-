@@ -39,6 +39,7 @@ class MyReportsController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('location_details', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%")
                     ->orWhereHas('category', function ($categoryQuery) use ($search) {
                         $categoryQuery->where('name', 'like', "%{$search}%");

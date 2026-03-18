@@ -33,6 +33,7 @@ class Report extends Model
         'incident_date',
         'incident_time',
         'location',
+        'location_details',
         'person_full_name',
         'person_college_department',
         'person_role',

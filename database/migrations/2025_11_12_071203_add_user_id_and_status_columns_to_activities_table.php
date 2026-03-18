@@ -6,16 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
+        if (!Schema::hasTable('activities')) {
+            return;
+        }
+
         Schema::table('activities', function (Blueprint $table) {
-            // Add user_id column if it doesn't exist
             if (!Schema::hasColumn('activities', 'user_id')) {
                 $table->unsignedBigInteger('user_id')->nullable()->after('report_id');
                 $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
             }
 
-            // Add old_status and new_status columns if they don't exist
             if (!Schema::hasColumn('activities', 'old_status')) {
                 $table->string('old_status')->nullable()->after('performed_by');
             }
@@ -26,11 +28,25 @@ return new class extends Migration
         });
     }
 
-    public function down()
+    public function down(): void
     {
+        if (!Schema::hasTable('activities')) {
+            return;
+        }
+
         Schema::table('activities', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn(['user_id', 'old_status', 'new_status']);
+            if (Schema::hasColumn('activities', 'user_id')) {
+                $table->dropForeign(['user_id']);
+                $table->dropColumn('user_id');
+            }
+
+            if (Schema::hasColumn('activities', 'old_status')) {
+                $table->dropColumn('old_status');
+            }
+
+            if (Schema::hasColumn('activities', 'new_status')) {
+                $table->dropColumn('new_status');
+            }
         });
     }
 };

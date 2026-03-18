@@ -23,7 +23,7 @@ class HandleReportsController extends Controller
     private function reportHasPersonsInvolved(Report $report): bool
     {
         $involvement = strtolower((string) ($report->person_involvement ?? ''));
-        return in_array($involvement, ['known', 'unknown'], true);
+        return in_array($involvement, ['known', 'unknown', 'unsure'], true);
     }
 
     private function collectInvolvedEmails(Report $report): array
@@ -219,6 +219,28 @@ class HandleReportsController extends Controller
         return false;
     }
 
+    private function isReportAssignedToUser(User $user, ?string $assignedTo): bool
+    {
+        $normalizedAssignedTo = strtolower(trim((string) $assignedTo));
+        if ($normalizedAssignedTo === '') {
+            return false;
+        }
+
+        $candidateNames = [];
+
+        $fullName = strtolower(trim($this->resolveUserName($user)));
+        if ($fullName !== '') {
+            $candidateNames[] = $fullName;
+        }
+
+        $fallbackName = strtolower(trim((string) ($user->name ?? '')));
+        if ($fallbackName !== '') {
+            $candidateNames[] = $fallbackName;
+        }
+
+        return in_array($normalizedAssignedTo, array_values(array_unique($candidateNames)), true);
+    }
+
     private function canCurrentUserResolve(User $admin, Report $report, ?string $assigneeName = null, ?User $assigneeUser = null): bool
     {
         if ((bool) $admin->is_top_management) {
@@ -226,7 +248,11 @@ class HandleReportsController extends Controller
         }
 
         if ((bool) $admin->is_department_student_discipline_officer && !(bool) $admin->is_top_management) {
-            return !(bool) $report->escalated_to_top_management;
+            if ((bool) $report->escalated_to_top_management) {
+                return $this->isReportAssignedToUser($admin, $assigneeName ?? $report->assigned_to);
+            }
+
+            return true;
         }
 
         return false;
@@ -257,10 +283,20 @@ class HandleReportsController extends Controller
             });
         }
 
-        return $query->whereHas('user', function ($q) use ($manager) {
-            $q->where('department_id', $manager->department_id);
-        })->whereHas('category', function ($q) {
-            $q->whereNotIn('classification', ['Major', 'Grave']);
+        $fullName = strtolower(trim((string) (($manager->first_name ?? '') . ' ' . ($manager->last_name ?? ''))));
+
+        return $query->where(function ($q) use ($manager, $fullName) {
+            $q->where(function ($ownDeptQuery) use ($manager) {
+                $ownDeptQuery->whereHas('user', function ($userQuery) use ($manager) {
+                    $userQuery->where('department_id', $manager->department_id);
+                })->whereHas('category', function ($categoryQuery) {
+                    $categoryQuery->whereNotIn('classification', ['Major', 'Grave']);
+                });
+            });
+
+            if ($fullName !== '') {
+                $q->orWhereRaw('LOWER(assigned_to) = ?', [$fullName]);
+            }
         });
     }
 
@@ -309,6 +345,28 @@ class HandleReportsController extends Controller
                 $term = trim((string) $request->reporter);
                 $q->whereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?", ['%' . $term . '%'])
                   ->orWhere('email', 'like', '%' . $term . '%');
+            });
+        }
+
+        // FILTER: Global search (ID, status, assignee, reporter, category)
+        if ($request->filled('search')) {
+            $searchTerm = trim((string) $request->search);
+            $query->where(function ($q) use ($searchTerm) {
+                if (ctype_digit($searchTerm)) {
+                    $q->orWhere('id', (int) $searchTerm);
+                }
+
+                $q->orWhere('status', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('assigned_to', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('user', function ($userQuery) use ($searchTerm) {
+                      $userQuery->whereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?", ['%' . $searchTerm . '%'])
+                          ->orWhere('email', 'like', '%' . $searchTerm . '%');
+                  })
+                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                      $categoryQuery->where('name', 'like', '%' . $searchTerm . '%')
+                          ->orWhere('main_category_code', 'like', '%' . $searchTerm . '%')
+                          ->orWhere('classification', 'like', '%' . $searchTerm . '%');
+                  });
             });
         }
 
@@ -377,6 +435,26 @@ class HandleReportsController extends Controller
                   ->orWhere('email', 'like', '%' . $term . '%');
             });
         }
+        if ($request->filled('search')) {
+            $searchTerm = trim((string) $request->search);
+            $escalatedReportsQuery->where(function ($q) use ($searchTerm) {
+                if (ctype_digit($searchTerm)) {
+                    $q->orWhere('id', (int) $searchTerm);
+                }
+
+                $q->orWhere('status', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('assigned_to', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('user', function ($userQuery) use ($searchTerm) {
+                      $userQuery->whereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?", ['%' . $searchTerm . '%'])
+                          ->orWhere('email', 'like', '%' . $searchTerm . '%');
+                  })
+                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                      $categoryQuery->where('name', 'like', '%' . $searchTerm . '%')
+                          ->orWhere('main_category_code', 'like', '%' . $searchTerm . '%')
+                          ->orWhere('classification', 'like', '%' . $searchTerm . '%');
+                  });
+            });
+        }
         if ($request->filled('from') && $request->filled('to')) {
             $escalatedReportsQuery->whereBetween('created_at', [
                 $request->from . ' 00:00:00',
@@ -440,12 +518,18 @@ class HandleReportsController extends Controller
             ->get();
 
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
-        $topManagementUsers = User::query()
-            ->where('is_top_management', 1)
+        $escalationTargets = User::query()
             ->where('status', 'active')
+            ->where('id', '!=', $admin->id)
+            ->where(function ($q) {
+                $q->where('is_top_management', 1)
+                  ->orWhere('is_department_student_discipline_officer', 1);
+            })
+            ->with('department:id,name')
+            ->orderByDesc('is_top_management')
             ->orderBy('first_name')
             ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'email', 'employee_office']);
+            ->get(['id', 'first_name', 'last_name', 'department_id', 'employee_office', 'is_top_management', 'is_department_student_discipline_officer']);
 
         $handlerUsers = User::query()
             ->where('status', 'active')
@@ -460,7 +544,7 @@ class HandleReportsController extends Controller
 
         $canResolve = $this->canCurrentUserResolve($admin, $report);
 
-        return view('admin.handlereports_show', compact('report', 'activities', 'responses', 'departments', 'topManagementUsers', 'handlerUsers', 'canResolve'));
+        return view('admin.handlereports_show', compact('report', 'activities', 'responses', 'departments', 'escalationTargets', 'handlerUsers', 'canResolve'));
     }
 
     public function scheduleHearing(Request $request, $id)
@@ -508,7 +592,72 @@ class HandleReportsController extends Controller
             $attachmentPath
         );
 
-        return back()->with('success', 'Step 1 completed: hearing schedule saved and response recorded.');
+        // Auto-notify reporter and involved parties immediately after saving hearing schedule.
+        $emailSentCount = 0;
+        if ($this->reportHasPersonsInvolved($report)) {
+            $hearingDateText = optional($report->hearing_date)->format('F d, Y');
+            $hearingTimeText = $report->hearing_time ? \Illuminate\Support\Carbon::parse($report->hearing_time)->format('h:i A') : 'N/A';
+            $ruleLabel = $this->getReportRuleLabel($report);
+            $subject = 'Hearing Notice - ' . $ruleLabel;
+            $senderName = $this->getHearingSenderName($admin);
+            $message = $this->buildHearingNoticeMessage($ruleLabel, $hearingDateText, $hearingTimeText, (string) $report->hearing_venue, $senderName);
+
+            $emailsToNotify = [];
+            if (!empty($report->user?->email)) {
+                $emailsToNotify[] = strtolower(trim((string) $report->user->email));
+            }
+
+            $emailsToNotify = array_values(array_unique(array_merge($emailsToNotify, $this->collectInvolvedEmails($report))));
+
+            foreach ($emailsToNotify as $email) {
+                if ($this->notifyByEmail($email, $subject, $message, $senderName)) {
+                    $emailSentCount++;
+                }
+            }
+
+            if ($emailSentCount > 0) {
+                $accountEmails = array_values(array_unique(array_filter($emailsToNotify)));
+                if (!empty($accountEmails)) {
+                    $accounts = User::query()->whereIn('email', $accountEmails)->get(['id', 'email']);
+
+                    foreach ($accounts as $account) {
+                        Activity::create([
+                            'report_id' => $report->id,
+                            'user_id' => $account->id,
+                            'action' => 'Hearing Notice Sent',
+                            'performed_by' => $admin->id,
+                            'old_status' => $report->status,
+                            'new_status' => $report->status,
+                            'remarks' => 'Hearing notification recorded in-system for account: ' . $account->email,
+                        ]);
+                    }
+                }
+
+                $report->update([
+                    'respondent_notified_at' => now(),
+                    'respondent_notified_by' => $admin->id,
+                ]);
+
+                Activity::create([
+                    'report_id' => $report->id,
+                    'user_id' => $report->user_id,
+                    'action' => 'Respondent Notified',
+                    'performed_by' => $admin->id,
+                    'old_status' => Report::STATUS_UNDER_REVIEW,
+                    'new_status' => Report::STATUS_UNDER_REVIEW,
+                    'remarks' => 'Hearing notice sent automatically after hearing schedule was saved.',
+                ]);
+            }
+        }
+
+        $message = 'Step 1 completed: hearing schedule saved and response recorded.';
+        if ($this->reportHasPersonsInvolved($report)) {
+            $message .= $emailSentCount > 0
+                ? " Hearing notices were sent to {$emailSentCount} recipient(s)."
+                : ' Hearing notice could not be sent by email right now; you may retry later.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function notifyRespondent($id)
@@ -518,7 +667,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Notification workflow for forms 2303/2304/2305 is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Notification workflow for forms 2303/2304/2305 is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         if (!$report->hearing_date || !$report->hearing_time || !$report->hearing_venue) {
@@ -595,7 +744,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Call slip form is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Call slip form is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         $docxPath = resource_path('views/admin/documents/CALL SLIP.docx');
@@ -613,7 +762,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Form 2304 is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Form 2304 is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         $validated = $request->validate([
@@ -756,7 +905,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Form 2305 is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Form 2305 is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         if (!$admin->is_top_management) {
@@ -885,31 +1034,50 @@ class HandleReportsController extends Controller
         }
 
         $validated = $request->validate([
-            'top_management_user_id' => 'required|exists:users,id',
+            'escalation_target_user_id' => 'required|exists:users,id',
             'escalation_note' => 'nullable|string|max:1000',
             'step4_remarks' => 'required|string|max:1000',
             'step4_target_date' => 'nullable|date|after_or_equal:today',
             'step4_attachment' => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
-        $topManager = User::query()
-            ->where('id', $validated['top_management_user_id'])
-            ->where('is_top_management', 1)
+        $targetHandler = User::query()
+            ->where('id', (int) $validated['escalation_target_user_id'])
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->where('is_top_management', 1)
+                  ->orWhere('is_department_student_discipline_officer', 1);
+            })
+            ->with('department:id,name')
             ->first();
 
-        if (!$topManager) {
-            return back()->with('error', 'Selected assignee is not a Top Management account.');
+        if (!$targetHandler) {
+            return back()->with('error', 'Selected assignee is not an active handler account.');
+        }
+
+        if ((int) $targetHandler->id === (int) $admin->id) {
+            return back()->with('error', 'Select a different account for escalation.');
+        }
+
+        $isTargetTopManagement = (bool) $targetHandler->is_top_management;
+        if (!$isTargetTopManagement && (int) ($targetHandler->department_id ?? 0) === (int) ($admin->department_id ?? 0)) {
+            return back()->with('error', 'For DSDO escalation, select a DSDO from another department.');
         }
 
         $oldStatus = $report->status;
-        $assignedTo = $this->resolveUserName($topManager);
+        $assignedTo = $this->resolveUserName($targetHandler);
+        $assignedOffice = (string) ($targetHandler->employee_office ?: ($targetHandler->department->name ?? 'N/A'));
+        $targetLabel = $isTargetTopManagement
+            ? 'Top Management'
+            : 'DSDO - ' . (string) ($targetHandler->department->name ?? 'Other Department');
 
         $report->update([
             'escalated_to_top_management' => true,
             'escalated_at' => now(),
             'escalated_by' => $admin->id,
             'assigned_to' => $assignedTo,
-            'assigned_position_code' => $topManager->routing_position_code,
+            'assigned_position_code' => $targetHandler->routing_position_code,
+            'department' => $assignedOffice,
             'status' => Report::STATUS_UNDER_REVIEW,
             'handled_by' => $admin->id,
         ]);
@@ -917,11 +1085,12 @@ class HandleReportsController extends Controller
         Activity::create([
             'report_id' => $report->id,
             'user_id' => $report->user_id,
-            'action' => 'Escalated to Top Management',
+            'action' => $isTargetTopManagement ? 'Escalated to Top Management' : 'Escalated to DSDO',
             'performed_by' => $admin->id,
             'old_status' => $oldStatus,
             'new_status' => Report::STATUS_UNDER_REVIEW,
-            'remarks' => 'Assigned to ' . $assignedTo . (!empty($validated['escalation_note']) ? ' | Note: ' . $validated['escalation_note'] : ''),
+            'remarks' => 'Escalated to ' . $targetLabel . ' and assigned to ' . $assignedTo
+                . (!empty($validated['escalation_note']) ? ' | Note: ' . $validated['escalation_note'] : ''),
         ]);
 
         $attachmentPath = $this->storeResponseAttachment($request, 'step4_attachment');
@@ -930,12 +1099,12 @@ class HandleReportsController extends Controller
             $admin,
             $validated['step4_remarks'],
             Report::STATUS_UNDER_REVIEW,
-            'Step 4: Escalated to Top Management',
+            $isTargetTopManagement ? 'Step 4: Escalated to Top Management' : 'Step 4: Escalated to DSDO',
             $validated['step4_target_date'] ?? null,
             $attachmentPath
         );
 
-        return back()->with('success', 'Step 4 completed: report escalated and response recorded.');
+        return back()->with('success', 'Step 4 completed: report escalated to ' . $targetLabel . ' and response recorded.');
     }
 
     public function printReprimand($id)
@@ -945,7 +1114,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Form 2304 is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Form 2304 is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         $docxPath = resource_path('views/admin/documents/WRITTEN REPRIMAND.docx');
@@ -963,7 +1132,7 @@ class HandleReportsController extends Controller
         Gate::authorize('accessHandling', $report);
 
         if (!$this->reportHasPersonsInvolved($report)) {
-            return back()->with('error', 'Form 2305 is only available when person involvement is Known or Unknown.');
+            return back()->with('error', 'Form 2305 is only available when person involvement is Known, Unknown, or Not sure yet.');
         }
 
         $docxPath = resource_path('views/admin/documents/MEMORANDUM OF SUSPENSION.docx');
@@ -1088,7 +1257,7 @@ class HandleReportsController extends Controller
                 return redirect()->back()->withInput()->with('error', 'Top Management cannot resolve this report while assigned to another Top Management account.');
             }
 
-            return redirect()->back()->withInput()->with('error', 'DSDO cannot resolve a report once it has been escalated to Top Management.');
+            return redirect()->back()->withInput()->with('error', 'DSDO cannot resolve this report unless it is currently assigned to their account after escalation.');
         }
 
         DB::transaction(function () use ($request, $report, $admin, $oldStatus, $newStatus, $selectedDepartment, $resolvedAssignedTo, $selectedAssignee) {

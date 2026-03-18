@@ -9,17 +9,25 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
-{
-    Schema::table('reports', function (Blueprint $table) {
-        $table->dropColumn('category');
-    });
-}
+    public function up(): void
+    {
+        if (!Schema::hasTable('reports') || !Schema::hasColumn('reports', 'category')) {
+            return;
+        }
 
-public function down()
-{
-    Schema::table('reports', function (Blueprint $table) {
-        $table->string('category')->nullable();
-    });
-}
+        Schema::table('reports', function (Blueprint $table) {
+            $table->dropColumn('category');
+        });
+    }
+
+    public function down(): void
+    {
+        if (!Schema::hasTable('reports') || Schema::hasColumn('reports', 'category')) {
+            return;
+        }
+
+        Schema::table('reports', function (Blueprint $table) {
+            $table->string('category')->nullable();
+        });
+    }
 };

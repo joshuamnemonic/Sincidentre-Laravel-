@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AdminProfileController extends Controller
 {
@@ -26,11 +27,18 @@ class AdminProfileController extends Controller
 
         // Validate inputs
         $request->validate([
+            'email'                 => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone'                 => 'nullable|string|max:20',
             'profile_picture'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'current_password'      => 'nullable|string',
             'new_password'          => 'nullable|string|min:8|confirmed',
         ]);
+
+        $normalizedEmail = strtolower(trim((string) $request->email));
+        if ($normalizedEmail !== '' && $normalizedEmail !== strtolower((string) $user->email)) {
+            $user->email = $normalizedEmail;
+            $user->email_verified_at = now();
+        }
 
         // Update phone number
         if ($request->filled('phone')) {

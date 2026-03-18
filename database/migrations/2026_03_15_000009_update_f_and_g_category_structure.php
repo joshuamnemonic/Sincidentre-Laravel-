@@ -51,7 +51,7 @@ return new class extends Migration
                     'main_category_name' => 'OFFENSES AGAINST PUBLIC MORALS',
                     'classification' => $item['classification'],
                     'updated_at' => now(),
-                    'created_at' => DB::raw('COALESCE(created_at, NOW())'),
+                    'created_at' => now(),
                 ]
             );
         }

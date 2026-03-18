@@ -29,6 +29,7 @@ class NewReportController extends Controller
             'incident_date' => 'required|date',
             'incident_time' => 'required',
             'location' => 'required|string|max:255',
+            'location_details' => 'nullable|string|max:255',
             'evidence' => 'required|array',
             'evidence.*' => 'file|max:51200|mimes:jpg,jpeg,png,mp4,avi,mov,pdf',
         ]);
@@ -49,6 +50,9 @@ class NewReportController extends Controller
             'incident_date' => $validated['incident_date'],
             'incident_time' => $validated['incident_time'],
             'location' => $validated['location'],
+            'location_details' => Schema::hasColumn('reports', 'location_details')
+                ? ($validated['location_details'] ?? null)
+                : null,
             'evidence' => json_encode($evidencePaths), // store multiple paths as JSON
             'status' => 'Pending',
             'submitted_at' => now(),

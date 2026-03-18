@@ -192,24 +192,26 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="location">Location of Incident <span>*</span></label>
-                <select id="location" name="location" required>
-                    <option value="">-- Select Location --</option>
-                    <option value="CAS Building" {{ old('location') == 'CAS Building' ? 'selected' : '' }}>CAS Building</option>
-                    <option value="CoT Building" {{ old('location') == 'CoT Building' ? 'selected' : '' }}>CoT Building</option>
-                    <option value="Admin Building" {{ old('location') == 'Admin Building' ? 'selected' : '' }}>Admin Building</option>
-                    <option value="CoEd Building" {{ old('location') == 'CoEd Building' ? 'selected' : '' }}>CoEd Building</option>
-                    <option value="CoHTM Building" {{ old('location') == 'CoHTM Building' ? 'selected' : '' }}>CoHTM Building</option>
-                    <option value="LLCC MPB" {{ old('location') == 'LLCC MPB' ? 'selected' : '' }}>LLCC MPB</option>
-                    <option value="Gate 1" {{ old('location') == 'Gate 1' ? 'selected' : '' }}>Gate 1</option>
-                    <option value="Gate 2" {{ old('location') == 'Gate 2' ? 'selected' : '' }}>Gate 2</option>
-                </select>
-            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="location">Location of Incident <span>*</span></label>
+                    <select id="location" name="location" required>
+                        <option value="">-- Select Location --</option>
+                        <option value="CAS Building" {{ old('location') == 'CAS Building' ? 'selected' : '' }}>CAS Building</option>
+                        <option value="CoT Building" {{ old('location') == 'CoT Building' ? 'selected' : '' }}>CoT Building</option>
+                        <option value="Admin Building" {{ old('location') == 'Admin Building' ? 'selected' : '' }}>Admin Building</option>
+                        <option value="CoEd Building" {{ old('location') == 'CoEd Building' ? 'selected' : '' }}>CoEd Building</option>
+                        <option value="CoHTM Building" {{ old('location') == 'CoHTM Building' ? 'selected' : '' }}>CoHTM Building</option>
+                        <option value="LLCC MPB" {{ old('location') == 'LLCC MPB' ? 'selected' : '' }}>LLCC MPB</option>
+                        <option value="Gate 1" {{ old('location') == 'Gate 1' ? 'selected' : '' }}>Gate 1</option>
+                        <option value="Gate 2" {{ old('location') == 'Gate 2' ? 'selected' : '' }}>Gate 2</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="location_details">Please Specify</label>
-                <input type="text" id="location_details" name="location_details" value="{{ old('location_details') }}" placeholder="Specific room, office, or area details">
+                <div class="form-group">
+                    <label for="location_details">Please Specify</label>
+                    <input type="text" id="location_details" name="location_details" value="{{ old('location_details') }}" placeholder="Specific room, office, or area details">
+                </div>
             </div>
 
             <div class="form-group">

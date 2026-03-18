@@ -13,36 +13,6 @@ class DashboardController extends Controller
     {
         $userId = Auth::id();
 
-        $search = trim((string) $request->input('search', ''));
-        $status = $request->filled('status') ? Report::normalizeStatus((string) $request->input('status')) : null;
-
-        $reportsQuery = Report::query()
-            ->with('category')
-            ->where('user_id', $userId);
-
-        if ($search !== '') {
-            $reportsQuery->where(function ($query) use ($search) {
-                $query->where('description', 'like', "%{$search}%")
-                    ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhereHas('category', function ($categoryQuery) use ($search) {
-                        $categoryQuery->where('name', 'like', "%{$search}%");
-                    });
-
-                if (ctype_digit($search)) {
-                    $query->orWhere('id', (int) $search);
-                }
-            });
-        }
-
-        if (!empty($status)) {
-            $reportsQuery->where('status', $status);
-        }
-
-        $recentReports = $reportsQuery
-            ->orderByRaw('COALESCE(submitted_at, created_at) DESC')
-            ->take(6)
-            ->get();
-
         $counts = Cache::remember("dashboard:counts:{$userId}", now()->addMinutes(2), function () use ($userId) {
             return Report::query()
                 ->where('user_id', $userId)
@@ -62,6 +32,31 @@ class DashboardController extends Controller
         $underReviewReports = (int) ($counts->under_review_reports ?? 0);
         $resolvedReports = (int) ($counts->resolved_reports ?? 0);
 
+        $attentionReports = $pendingReports + $underReviewReports + $rejectedReports;
+
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        $monthlyCounts = Report::query()
+            ->where('user_id', $userId)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->selectRaw('COUNT(*) as month_total_reports')
+            ->selectRaw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as month_resolved_reports', [Report::STATUS_RESOLVED])
+            ->first();
+
+        $monthlyTotalReports = (int) ($monthlyCounts->month_total_reports ?? 0);
+        $monthlyResolvedReports = (int) ($monthlyCounts->month_resolved_reports ?? 0);
+        $resolutionRate = $monthlyTotalReports > 0
+            ? (int) round(($monthlyResolvedReports / $monthlyTotalReports) * 100)
+            : 0;
+
+        $recentActivity = Report::query()
+            ->with('category')
+            ->where('user_id', $userId)
+            ->orderByDesc('updated_at')
+            ->take(5)
+            ->get();
+
         return view('user.dashboard', compact(
             'totalReports',
             'pendingReports',
@@ -69,9 +64,11 @@ class DashboardController extends Controller
             'rejectedReports',
             'underReviewReports',
             'resolvedReports',
-            'recentReports',
-            'search',
-            'status'
+            'attentionReports',
+            'monthlyTotalReports',
+            'monthlyResolvedReports',
+            'resolutionRate',
+            'recentActivity'
         ));
     }
 }

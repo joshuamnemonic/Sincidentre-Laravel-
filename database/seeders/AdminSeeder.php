@@ -4,15 +4,80 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\User;
+use App\Models\Department;
 use App\Models\RoutingPosition;
 use App\Models\ReportRoutingRule;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AdminSeeder extends Seeder
 {
+    private function normalizeDepartmentAliases(): void
+    {
+        $canonical = Department::query()
+            ->whereRaw('LOWER(name) = ?', ['college of technology'])
+            ->first();
+
+        if (!$canonical) {
+            return;
+        }
+
+        $duplicates = Department::query()
+            ->whereRaw('LOWER(name) IN (?, ?)', ['cot', 'co t'])
+            ->where('id', '!=', $canonical->id)
+            ->get(['id']);
+
+        foreach ($duplicates as $duplicate) {
+            DB::table('users')
+                ->where('department_id', $duplicate->id)
+                ->update(['department_id' => $canonical->id]);
+
+            $stillReferenced = DB::table('users')
+                ->where('department_id', $duplicate->id)
+                ->exists();
+
+            if (!$stillReferenced) {
+                DB::table('departments')->where('id', $duplicate->id)->delete();
+            }
+        }
+    }
+
+    private function resolveDepartmentId(array $aliases): int
+    {
+        $aliases = array_map(fn ($name) => strtolower(trim((string) $name)), $aliases);
+
+        // Normalize common short names to their canonical department names.
+        if (in_array('cot', $aliases, true)) {
+            $aliases[] = 'college of technology';
+        }
+        if (in_array('coed', $aliases, true)) {
+            $aliases[] = 'college of education';
+        }
+        if (in_array('cohtm', $aliases, true)) {
+            $aliases[] = 'college of hospitality and tourism management';
+        }
+
+        $aliases = array_values(array_unique(array_filter($aliases)));
+
+        $department = Department::query()
+            ->whereIn(DB::raw('LOWER(name)'), $aliases)
+            ->first();
+
+        if ($department) {
+            return (int) $department->id;
+        }
+
+        $fallbackName = trim((string) ($aliases[0] ?? 'Department'));
+        $created = Department::create(['name' => $fallbackName !== '' ? $fallbackName : 'Department']);
+
+        return (int) $created->id;
+    }
+
     public function run()
     {
+        $this->normalizeDepartmentAliases();
+
         $routingPositions = [
             ['code' => 'disciplinary_officer', 'name' => 'Disciplinary Officer'],
             ['code' => 'facilities_officer', 'name' => 'Facilities Officer'],
@@ -73,32 +138,43 @@ class AdminSeeder extends Seeder
             );
         }
 
-        $admins = [
+        $oldAdminEmails = [
+            'admin@llcc.edu.ph',
+            'admin.anna@llcc.edu.ph',
+            'admin.jane@llcc.edu.ph',
+        ];
+
+        User::whereIn('email', $oldAdminEmails)->delete();
+
+        $this->command->info('Legacy admin accounts (Johnny, Anna, Jane) removed.');
+
+        $dsdoAccounts = [
             [
-                'first_name' => 'Admin',
-                'last_name' => 'Johnny',
-                'email' => 'admin@llcc.edu.ph',
-                'password' => Hash::make('admin123'),
-                'department_id' => 1,
+                'first_name' => 'Gerald',
+                'last_name' => 'Alquizalas',
+                'email' => 'alquizalas.gerald@llcc.edu.ph',
+                'password' => Hash::make('123Gerald'),
+                'department_aliases' => ['CoHTM', 'College of Hospitality and Tourism Management'],
             ],
             [
-                'first_name' => 'Admin',
-                'last_name' => 'Anna',
-                'email' => 'admin.anna@llcc.edu.ph',
-                'password' => Hash::make('admin123'),
-                'department_id' => 2,
+                'first_name' => 'Charlyn',
+                'last_name' => 'Ompad',
+                'email' => 'ompad.charlyn@llcc.edu.ph',
+                'password' => Hash::make('123Charlyn'),
+                'department_aliases' => ['CoED', 'College of Education'],
             ],
             [
-                'first_name' => 'Admin',
-                'last_name' => 'Jane',
-                'email' => 'admin.jane@llcc.edu.ph',
-                'password' => Hash::make('admin123'),
-                'department_id' => 3,
+                'first_name' => 'Van Dexter',
+                'last_name' => 'Lachica',
+                'email' => 'lachica.vandexter@llcc.edu.ph',
+                'password' => Hash::make('123VanDexter'),
+                'department_aliases' => ['CoT', 'College of Technology'],
             ],
         ];
 
-        foreach ($admins as $adminData) {
+        foreach ($dsdoAccounts as $adminData) {
             $admin = User::where('email', $adminData['email'])->first();
+            $departmentId = $this->resolveDepartmentId((array) ($adminData['department_aliases'] ?? []));
             
             if ($admin) {
                 // ✅ Update existing admin
@@ -106,8 +182,10 @@ class AdminSeeder extends Seeder
                     'first_name' => $adminData['first_name'],
                     'last_name' => $adminData['last_name'],
                     'password' => $adminData['password'],
-                    'department_id' => $adminData['department_id'],
+                    'department_id' => $departmentId,
                     'is_department_student_discipline_officer' => 1,
+                    'is_top_management' => 0,
+                    'routing_position_code' => null,
                     'email_verified_at' => Carbon::now(),
                     'status' => 'active',
                 ]);
@@ -120,8 +198,10 @@ class AdminSeeder extends Seeder
                     'last_name' => $adminData['last_name'],
                     'email' => $adminData['email'],
                     'password' => $adminData['password'],
-                    'department_id' => $adminData['department_id'],
+                    'department_id' => $departmentId,
                     'is_department_student_discipline_officer' => 1,
+                    'is_top_management' => 0,
+                    'routing_position_code' => null,
                     'email_verified_at' => Carbon::now(),
                     'status' => 'active',
                 ]);

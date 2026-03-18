@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private function isSqlite(): bool
+    {
+        return DB::getDriverName() === 'sqlite';
+    }
+
     private function columnExists(string $table, string $column): bool
     {
         return Schema::hasColumn($table, $column);
@@ -14,6 +19,11 @@ return new class extends Migration
 
     private function foreignKeyExists(string $table, string $foreignKeyName): bool
     {
+        if ($this->isSqlite()) {
+            // SQLite does not expose MySQL information_schema metadata used below.
+            return true;
+        }
+
         $result = DB::selectOne(
             'SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = "FOREIGN KEY" LIMIT 1',
             [$table, $foreignKeyName]
@@ -24,6 +34,10 @@ return new class extends Migration
 
     private function dropForeignKeyIfExists(string $table, string $foreignKeyName): void
     {
+        if ($this->isSqlite()) {
+            return;
+        }
+
         if ($this->foreignKeyExists($table, $foreignKeyName)) {
             DB::statement("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$foreignKeyName}`");
         }
@@ -31,6 +45,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if ($this->isSqlite()) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             if (!$this->columnExists('users', 'is_department_student_discipline_officer')) {
                 $table->boolean('is_department_student_discipline_officer')->default(0)->after('password');
@@ -118,6 +136,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if ($this->isSqlite()) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             if (!$this->columnExists('users', 'is_admin')) {
                 $table->boolean('is_admin')->default(0)->after('password');

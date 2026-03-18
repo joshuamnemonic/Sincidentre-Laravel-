@@ -58,57 +58,41 @@
         </div>
 
         <div class="recent-reports animate">
-            <h3>Quick Shortcuts</h3>
+            <h3>Dashboard Overview</h3>
 
-            <form method="GET" action="{{ route('dashboard') }}" class="shortcut-search">
-                <input
-                    type="search"
-                    name="search"
-                    id="dashboard-quick-search"
-                    placeholder="Quick search recent reports"
-                    value="{{ $search }}"
-                    aria-label="Quick search recent reports"
-                >
-                <button type="submit">Search</button>
-                <a href="{{ route('myreports', ['search' => $search, 'status' => $status]) }}" class="btn-secondary">Open in My Reports</a>
-            </form>
+            <div class="overview-grid" aria-label="Dashboard overview">
+                <section class="overview-card overview-attention">
+                    <h4>Attention Required</h4>
+                    <p class="overview-metric">{{ $attentionReports }}</p>
+                    <p class="overview-text">Pending, under review, and rejected reports that may need action.</p>
+                    <a href="{{ route('myreports', ['status' => [\App\Models\Report::STATUS_PENDING, \App\Models\Report::STATUS_UNDER_REVIEW, \App\Models\Report::STATUS_REJECTED]]) }}" class="btn-primary overview-link">View Priority Reports</a>
+                </section>
 
-            <div class="shortcut-chips" role="group" aria-label="Quick status shortcuts">
-                <a href="{{ route('dashboard') }}" class="shortcut-chip {{ empty($status) ? 'active' : '' }}">All</a>
-                @foreach ($statusCards as $card)
-                    <a href="{{ route('dashboard', ['status' => $card['status']]) }}" class="shortcut-chip {{ $card['class'] }} {{ $status === $card['status'] ? 'active' : '' }}">
-                        {{ $card['label'] }}
-                    </a>
-                @endforeach
-            </div>
+                <section class="overview-card overview-health">
+                    <h4>My Report Health</h4>
+                    <p class="overview-text">Resolution rate this month</p>
+                    <p class="overview-metric">{{ $resolutionRate }}%</p>
+                    <div class="health-meta">
+                        <span>{{ $monthlyResolvedReports }} resolved</span>
+                        <span>{{ $monthlyTotalReports }} total this month</span>
+                    </div>
+                </section>
 
-            <div class="table-wrapper">
-                <table id="reports-table">
-                    <thead>
-                        <tr>
-                            <th>Report ID</th>
-                            <th>Category</th>
-                            <th>Submitted</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($recentReports as $report)
-                            <tr class="report-row" tabindex="0" data-href="{{ route('report.show', $report->id) }}">
-                                <td>{{ $report->id }}</td>
-                                <td>{{ strtoupper(optional($report->category)->main_category_code ?: 'N/A') }}</td>
-                                <td>{{ optional($report->submitted_at)->format('M d, Y') ?? optional($report->created_at)->format('M d, Y') }}</td>
-                                <td>
-                                    <span class="status {{ strtolower(str_replace(' ', '-', $report->status)) }}">{{ $report->status }}</span>
-                                </td>
-                            </tr>
+                <section class="overview-card overview-activity">
+                    <h4>Recent Activity</h4>
+                    <ul class="activity-list">
+                        @forelse ($recentActivity as $activity)
+                            <li>
+                                <span class="activity-title">Report {{ $activity->id }} - {{ $activity->status }}</span>
+                                <span class="activity-meta">{{ optional($activity->updated_at)->format('M d, Y h:i A') }}</span>
+                            </li>
                         @empty
-                            <tr>
-                                <td colspan="4" class="empty-state">No recent reports found for this quick filter.</td>
-                            </tr>
+                            <li>
+                                <span class="activity-title">No recent activity</span>
+                            </li>
                         @endforelse
-                    </tbody>
-                </table>
+                    </ul>
+                </section>
             </div>
         </div>
     </div>
@@ -159,68 +143,113 @@
         }
 
         .dashboard-lite .shortcut-search {
+            display: none;
+        }
+
+        .dashboard-lite .cards {
+            gap: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .dashboard-lite .cards .card {
+            padding: 1rem 0.75rem;
+            border-radius: 1.1rem;
+        }
+
+        .dashboard-lite .cards .card h3 {
+            margin: 0 0 0.5rem;
+            font-size: 0.76rem;
+            letter-spacing: 0.8px;
+        }
+
+        .dashboard-lite .cards .card p {
+            font-size: 2.05rem;
+        }
+
+        .dashboard-lite .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.85rem;
+            padding: 1rem 1.25rem;
+        }
+
+        .dashboard-lite .overview-card {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 0.8rem;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0.95rem;
+        }
+
+        .dashboard-lite .overview-card h4 {
+            margin: 0 0 0.45rem;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .dashboard-lite .overview-text {
+            color: rgba(255, 255, 255, 0.86);
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.35;
+        }
+
+        .dashboard-lite .overview-metric {
+            margin: 0.35rem 0;
+            color: #ffffff;
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .dashboard-lite .overview-link {
+            margin-top: 0.65rem;
+            min-height: 40px;
+            font-size: 0.88rem;
+            padding: 0.6rem 0.85rem;
+            width: 100%;
+        }
+
+        .dashboard-lite .health-meta {
+            margin-top: 0.4rem;
             display: flex;
-            gap: 0.75rem;
+            gap: 0.65rem;
             flex-wrap: wrap;
-            align-items: center;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.8rem;
         }
 
-        .dashboard-lite .shortcut-search input {
-            flex: 1 1 240px;
-        }
-
-        .dashboard-lite .shortcut-chips {
+        .dashboard-lite .activity-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            padding: 0 2rem 1rem;
+            flex-direction: column;
+            gap: 0.45rem;
         }
 
-        .dashboard-lite .shortcut-chip {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.45rem 0.8rem;
-            border-radius: 999px;
-            text-decoration: none;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            background: rgba(255, 255, 255, 0.08);
-            font-size: 0.85rem;
+        .dashboard-lite .activity-list li {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            padding-bottom: 0.45rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dashboard-lite .activity-list li:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .dashboard-lite .activity-title {
+            color: #ffffff;
+            font-size: 0.83rem;
             font-weight: 600;
         }
 
-        .dashboard-lite .shortcut-chip.active {
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
-        }
-
-        .dashboard-lite .shortcut-chip.status-pending {
-            border-color: var(--status-pending-border);
-            background: var(--status-pending-bg);
-            color: var(--status-pending-color);
-        }
-
-        .dashboard-lite .shortcut-chip.status-approved {
-            border-color: var(--status-approved-border);
-            background: var(--status-approved-bg);
-            color: var(--status-approved-color);
-        }
-
-        .dashboard-lite .shortcut-chip.status-rejected {
-            border-color: var(--status-rejected-border);
-            background: var(--status-rejected-bg);
-            color: var(--status-rejected-color);
-        }
-
-        .dashboard-lite .shortcut-chip.status-under-review {
-            border-color: var(--status-review-border);
-            background: var(--status-review-bg);
-            color: var(--status-review-color);
-        }
-
-        .dashboard-lite .shortcut-chip.status-resolved {
-            border-color: var(--status-resolved-border);
-            background: var(--status-resolved-bg);
-            color: var(--status-resolved-color);
+        .dashboard-lite .activity-meta {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 0.74rem;
         }
 
         .dashboard-lite .report-row {
@@ -242,31 +271,53 @@
         @media (max-width: 768px) {
             .dashboard-lite .cards {
                 grid-template-columns: repeat(2, 1fr);
+                gap: 0.6rem;
             }
 
-            .dashboard-lite .shortcut-chips {
-                padding-left: 1rem;
-                padding-right: 1rem;
+            .dashboard-lite .cards .card {
+                padding: 0.75rem 0.55rem;
+                border-radius: 0.9rem;
+            }
+
+            .dashboard-lite .cards .card h3 {
+                font-size: 0.68rem;
+                margin-bottom: 0.35rem;
+                letter-spacing: 0.55px;
+            }
+
+            .dashboard-lite .cards .card p {
+                font-size: 1.55rem;
+            }
+
+            .dashboard-lite .overview-grid {
+                grid-template-columns: 1fr;
+                gap: 0.65rem;
+                padding: 0.8rem;
+            }
+
+            .dashboard-lite .overview-card {
+                padding: 0.8rem;
+            }
+
+            .dashboard-lite .overview-metric {
+                font-size: 1.45rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard-lite .cards .card {
+                padding: 0.65rem 0.45rem;
+            }
+
+            .dashboard-lite .cards .card p {
+                font-size: 1.35rem;
+            }
+
+            .dashboard-lite .cards .card h3 {
+                font-size: 0.62rem;
+                letter-spacing: 0.4px;
             }
         }
     </style>
 @endpush
 
-@push('scripts')
-    <script>
-        (function () {
-            document.querySelectorAll('.report-row[data-href]').forEach(function (row) {
-                row.addEventListener('click', function () {
-                    window.location.href = row.dataset.href;
-                });
-
-                row.addEventListener('keydown', function (event) {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        window.location.href = row.dataset.href;
-                    }
-                });
-            });
-        })();
-    </script>
-@endpush

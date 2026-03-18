@@ -106,7 +106,7 @@ return new class extends Migration
                     'main_category_name' => $category['main_category_name'],
                     'classification' => $category['classification'],
                     'updated_at' => now(),
-                    'created_at' => DB::raw('COALESCE(created_at, NOW())'),
+                    'created_at' => now(),
                 ]
             );
         }

@@ -169,7 +169,7 @@
         <div class="user-topbar">
             <div class="user-topbar-spacer"></div>
 
-            <div class="notification-wrapper" id="notificationWrapper">
+            <div class="notification-wrapper" id="notificationWrapper" data-read-url="{{ route('notifications.read') }}">
                 <button
                     type="button"
                     class="notification-bell-btn"
@@ -188,7 +188,7 @@
                     <div class="notification-dropdown-header">Notifications</div>
 
                     @forelse($userNotifications as $notification)
-                        <a href="{{ $notification['url'] }}" class="notification-item notification-item-{{ $notification['type'] }} {{ $notification['is_read'] ? 'notification-item-read' : '' }}" role="menuitem">
+                        <a href="{{ $notification['url'] }}" class="notification-item notification-item-{{ $notification['type'] }} {{ $notification['is_read'] ? 'notification-item-read' : '' }}" data-notification-key="{{ $notification['key'] }}" role="menuitem">
                             <div class="notification-item-title">{{ $notification['title'] }}</div>
                             <div class="notification-item-message">{{ $notification['message'] }}</div>
                             <small class="notification-item-time">{{ optional($notification['time'])->diffForHumans() }}</small>
@@ -305,6 +305,9 @@
 
         const notificationBell = document.getElementById('notificationBell');
         const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationWrapper = document.getElementById('notificationWrapper');
+        const readNotificationUrl = notificationWrapper ? String(notificationWrapper.dataset.readUrl || '') : '';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         function closeNotificationDropdown() {
             if (!notificationBell || !notificationDropdown) return;
@@ -313,11 +316,65 @@
         }
 
         if (notificationBell && notificationDropdown) {
+            const updateNotificationBadge = function () {
+                const unreadCount = notificationDropdown.querySelectorAll('.notification-item:not(.notification-item-read)').length;
+                let badge = notificationBell.querySelector('.notification-badge');
+
+                if (unreadCount > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'notification-badge';
+                        notificationBell.appendChild(badge);
+                    }
+                    badge.textContent = String(unreadCount);
+                } else if (badge) {
+                    badge.remove();
+                }
+            };
+
             notificationBell.addEventListener('click', function (event) {
                 event.stopPropagation();
                 notificationDropdown.classList.toggle('show');
                 const isExpanded = notificationDropdown.classList.contains('show');
                 notificationBell.setAttribute('aria-expanded', String(isExpanded));
+            });
+
+            notificationDropdown.querySelectorAll('.notification-item[data-notification-key]').forEach(function (item) {
+                item.addEventListener('click', function (event) {
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                        return;
+                    }
+
+                    const targetUrl = item.getAttribute('href') || '';
+                    const notifKey = item.getAttribute('data-notification-key') || '';
+
+                    if (!targetUrl || !notifKey || !readNotificationUrl || !csrfToken) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    fetch(readNotificationUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ notif_key: notifKey }),
+                        keepalive: true,
+                    })
+                        .then(function () {
+                            item.classList.add('notification-item-read');
+                            updateNotificationBadge();
+                        })
+                        .catch(function () {
+                            // Keep navigation working even if the read-mark request fails.
+                        })
+                        .finally(function () {
+                            window.location.href = targetUrl;
+                        });
+                });
             });
 
             document.addEventListener('click', function (event) {
