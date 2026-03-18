@@ -11,14 +11,46 @@ use Illuminate\Validation\Rule;
 class CategoryController extends Controller
 {
     // Show all categories
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::orderBy('main_category_code')
+        $mainCode = strtoupper(trim((string) $request->query('main_code', '')));
+        $classification = trim((string) $request->query('classification', ''));
+        $search = trim((string) $request->query('search', ''));
+
+        $categoriesQuery = Category::query();
+
+        if ($mainCode !== '') {
+            $categoriesQuery->where('main_category_code', $mainCode);
+        }
+
+        if ($classification !== '') {
+            $categoriesQuery->where('classification', $classification);
+        }
+
+        if ($search !== '') {
+            $categoriesQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('main_category_name', 'like', '%' . $search . '%')
+                    ->orWhere('main_category_code', 'like', '%' . $search . '%');
+            });
+        }
+
+        $categories = $categoriesQuery
+            ->orderBy('main_category_code')
             ->orderBy('classification')
             ->orderBy('name')
             ->get();
 
-        return view('admin.categories', compact('categories'));
+        $mainCodes = Category::query()
+            ->select('main_category_code', 'main_category_name')
+            ->orderBy('main_category_code')
+            ->get()
+            ->groupBy('main_category_code')
+            ->map(function ($items) {
+                return $items->first()->main_category_name;
+            });
+
+        return view('admin.categories', compact('categories', 'mainCodes', 'mainCode', 'classification', 'search'));
     }
 
     // Add new category

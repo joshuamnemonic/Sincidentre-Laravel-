@@ -810,7 +810,7 @@ class HandleReportsController extends Controller
             'remarks' => 'Written Reprimand recorded in case file and reporter notified.',
         ]);
 
-        $noticeSubject = 'Written Reprimand Update - Case #' . $report->id;
+        $noticeSubject = 'Written Reprimand Update - Report #' . $report->id;
         $noticeMessage = 'Written reprimand has been printed and recorded for this case. Please log in to view case updates.';
         if (!empty($report->user?->email)) {
             $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage);
@@ -975,7 +975,7 @@ class HandleReportsController extends Controller
         $userStatus = $validated['disciplinary_action'] === 'Dismissal' ? 'deactivated' : 'suspended';
         $report->user->update([
             'status' => $userStatus,
-            'suspension_reason' => 'Case #' . $report->id . ' - ' . $validated['disciplinary_action'],
+            'suspension_reason' => 'Report #' . $report->id . ' - ' . $validated['disciplinary_action'],
             'suspended_at' => now(),
             'suspended_by' => $admin->id,
         ]);
@@ -1003,7 +1003,7 @@ class HandleReportsController extends Controller
             'remarks' => $validated['disciplinary_action'] . ' action recorded and reporter notified.',
         ]);
 
-        $noticeSubject = $validated['disciplinary_action'] . ' Notice - Case #' . $report->id;
+        $noticeSubject = $validated['disciplinary_action'] . ' Notice - Report #' . $report->id;
         $noticeMessage = $validated['disciplinary_action'] . ' details were recorded for this case. Please log in to your account for updated case details.';
         if (!empty($report->user?->email)) {
             $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage);

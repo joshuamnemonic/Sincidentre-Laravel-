@@ -45,7 +45,7 @@
                     'key' => $notifKey,
                     'type' => 'timeline',
                     'title' => 'Response Timeline Updated',
-                    'message' => 'Case #' . $reportItem->id . ' has a Department Student Discipline Officer response update.',
+                    'message' => 'Report #' . $reportItem->id . ' has a Department Student Discipline Officer response update.',
                     'url' => route('report.show', [
                         'id' => $reportItem->id,
                         'notif_key' => $notifKey,
@@ -62,7 +62,7 @@
                     'key' => $notifKey,
                     'type' => 'hearing',
                     'title' => 'Hearing Notification',
-                    'message' => 'Case #' . $reportItem->id . ' has a hearing/case record update.',
+                    'message' => 'Report #' . $reportItem->id . ' has a hearing record update.',
                     'url' => route('report.show', [
                         'id' => $reportItem->id,
                         'notif_key' => $notifKey,

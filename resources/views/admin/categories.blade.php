@@ -86,6 +86,45 @@
     <!-- Categories Table -->
     <section style="margin-top: 20px;">
         <h2>Existing Categories</h2>
+
+        <div class="category-filter-wrap">
+            <form method="GET" action="{{ route('admin.categories.index') }}" class="category-filter-form">
+                <div class="category-filter-field">
+                    <label for="main_code">Main Category</label>
+                    <select name="main_code" id="main_code">
+                        <option value="">All Main Categories</option>
+                        @foreach(($mainCodes ?? collect()) as $code => $mainName)
+                            <option value="{{ $code }}" {{ ($mainCode ?? '') === $code ? 'selected' : '' }}>
+                                {{ $code }} - {{ $mainName }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="category-filter-field">
+                    <label for="classification_filter">Classification</label>
+                    <select name="classification" id="classification_filter">
+                        <option value="">All Classifications</option>
+                        <option value="Minor" {{ ($classification ?? '') === 'Minor' ? 'selected' : '' }}>Minor</option>
+                        <option value="Major" {{ ($classification ?? '') === 'Major' ? 'selected' : '' }}>Major</option>
+                        <option value="Grave" {{ ($classification ?? '') === 'Grave' ? 'selected' : '' }}>Grave</option>
+                    </select>
+                </div>
+
+                <div class="category-filter-field">
+                    <label for="search_filter">Search</label>
+                    <input type="text" id="search_filter" name="search" value="{{ $search ?? '' }}" placeholder="Category or main category name">
+                </div>
+
+                <div class="category-filter-actions">
+                    <button type="submit" class="btn-filter">Apply Filter</button>
+                    @if(($mainCode ?? '') !== '' || ($classification ?? '') !== '' || ($search ?? '') !== '')
+                        <a href="{{ route('admin.categories.index') }}" class="btn-clear">Clear Filter</a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -198,5 +237,83 @@
         });
     });
 </script>
+@endpush
+
+@push('styles')
+<style>
+    .category-filter-wrap {
+        margin-bottom: 14px;
+    }
+
+    .category-filter-form {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .category-filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 210px;
+        flex: 1 1 220px;
+    }
+
+    .category-filter-field label {
+        font-weight: 600;
+    }
+
+    .category-filter-field select,
+    .category-filter-field input {
+        width: 100%;
+        min-height: 42px;
+        padding: 0.65rem 0.8rem;
+        background: #ffffff;
+        color: #111111;
+        border: 1px solid rgba(17, 24, 39, 0.18);
+        border-radius: 0.55rem;
+    }
+
+    .category-filter-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .category-filter-actions .btn-filter,
+    .category-filter-actions .btn-clear {
+        min-height: 42px;
+        padding: 0.65rem 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+        .category-filter-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .category-filter-field {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .category-filter-actions {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .category-filter-actions .btn-filter,
+        .category-filter-actions .btn-clear {
+            width: 100%;
+        }
+    }
+</style>
 @endpush
 
