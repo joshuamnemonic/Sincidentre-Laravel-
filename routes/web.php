@@ -77,6 +77,16 @@ Route::middleware(['auth', 'is_department_student_discipline_officer', 'pending_
     Route::delete('/admin/users/{id}', [UserManagementController::class, 'destroy'])
         ->name('admin.users.destroy');
 
+    // Pending Employee Registrations
+    Route::get('/admin/pending-employees', [UserManagementController::class, 'pendingEmployees'])
+        ->name('admin.pending-employees');
+    Route::get('/admin/pending-employees/{id}', [UserManagementController::class, 'showPendingEmployee'])
+        ->name('admin.pending-employees.show');
+    Route::post('/admin/pending-employees/{id}/approve', [UserManagementController::class, 'approveEmployee'])
+        ->name('admin.pending-employees.approve');
+    Route::post('/admin/pending-employees/{id}/reject', [UserManagementController::class, 'rejectEmployee'])
+        ->name('admin.pending-employees.reject');
+
     // Admin Handle Reports
 Route::prefix('admin')->group(function () {
     Route::get('/handle-reports', 

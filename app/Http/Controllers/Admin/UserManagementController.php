@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Activity;
+use App\Models\PendingEmployeeRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
@@ -364,6 +367,141 @@ class UserManagementController extends Controller
         }
 
         return $this->deactivate(request(), $id);
+    }
+
+    /**
+     * Display pending employee registrations
+     */
+    public function pendingEmployees()
+    {
+        $pendingRegistrations = PendingEmployeeRegistration::pending()
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('admin.pending-employees', compact('pendingRegistrations'));
+    }
+
+    /**
+     * View details of a pending employee registration
+     */
+    public function showPendingEmployee($id)
+    {
+        $registration = PendingEmployeeRegistration::findOrFail($id);
+
+        return view('admin.pending-employee-show', compact('registration'));
+    }
+
+    /**
+     * Approve a pending employee registration
+     */
+    public function approveEmployee(Request $request, $id)
+    {
+        $registration = PendingEmployeeRegistration::findOrFail($id);
+
+        if ($registration->status !== PendingEmployeeRegistration::STATUS_PENDING) {
+            return redirect()->back()->withErrors(['error' => 'This registration has already been processed.']);
+        }
+
+        // Create the user account
+        $user = User::create([
+            'first_name' => $registration->first_name,
+            'last_name' => $registration->last_name,
+            'email' => $registration->email,
+            'username' => $registration->username,
+            'password' => $registration->password, // Already hashed
+            'registrant_type' => 'employee_staff',
+            'department_id' => null,
+            'employee_office' => null,
+            'employee_id_number' => null,
+            'email_verification_otp' => null,
+            'email_verification_otp_expires_at' => null,
+            'otp_attempts' => 0,
+            'otp_locked_until' => null,
+            'email_verified_at' => now(),
+            'status' => 'active'
+        ]);
+
+        // Update the registration status
+        $registration->update([
+            'status' => PendingEmployeeRegistration::STATUS_APPROVED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        // Send approval email to the employee
+        Mail::raw(
+            "Your Sincidentre employee registration has been approved! You can now login using your username: {$registration->username}",
+            function ($message) use ($registration) {
+                $message->to($registration->email)
+                    ->from(config('mail.from.address'), 'Sincidentre')
+                    ->subject('Employee Registration Approved - Sincidentre');
+            }
+        );
+
+        // Log the activity
+        Activity::create([
+            'user_id' => Auth::id(),
+            'action' => 'approved_employee_registration',
+            'description' => "Approved employee registration for {$registration->first_name} {$registration->last_name} (username: {$registration->username})",
+            'metadata' => json_encode([
+                'registration_id' => $registration->id,
+                'employee_username' => $registration->username,
+                'employee_email' => $registration->email,
+            ]),
+        ]);
+
+        return redirect()->route('admin.pending-employees')
+            ->with('success', 'Employee registration approved successfully. The employee has been notified via email.');
+    }
+
+    /**
+     * Reject a pending employee registration
+     */
+    public function rejectEmployee(Request $request, $id)
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+
+        $registration = PendingEmployeeRegistration::findOrFail($id);
+
+        if ($registration->status !== PendingEmployeeRegistration::STATUS_PENDING) {
+            return redirect()->back()->withErrors(['error' => 'This registration has already been processed.']);
+        }
+
+        // Update the registration status
+        $registration->update([
+            'status' => PendingEmployeeRegistration::STATUS_REJECTED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+            'rejection_reason' => $request->rejection_reason,
+        ]);
+
+        // Send rejection email to the employee
+        Mail::raw(
+            "Your Sincidentre employee registration has been rejected.\n\nReason: {$request->rejection_reason}\n\nYou may contact support if you believe this was done in error.",
+            function ($message) use ($registration) {
+                $message->to($registration->email)
+                    ->from(config('mail.from.address'), 'Sincidentre')
+                    ->subject('Employee Registration Rejected - Sincidentre');
+            }
+        );
+
+        // Log the activity
+        Activity::create([
+            'user_id' => Auth::id(),
+            'action' => 'rejected_employee_registration',
+            'description' => "Rejected employee registration for {$registration->first_name} {$registration->last_name} (username: {$registration->username})",
+            'metadata' => json_encode([
+                'registration_id' => $registration->id,
+                'employee_username' => $registration->username,
+                'employee_email' => $registration->email,
+                'rejection_reason' => $request->rejection_reason,
+            ]),
+        ]);
+
+        return redirect()->route('admin.pending-employees')
+            ->with('success', 'Employee registration rejected. The applicant has been notified via email.');
     }
 }
 

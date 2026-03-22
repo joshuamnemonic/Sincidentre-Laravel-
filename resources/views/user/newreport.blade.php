@@ -40,6 +40,12 @@
             })->values();
         })->toArray();
 
+        $mainCategoryMetaForJs = $categoriesByMain->map(function ($group) {
+            return [
+                'main_name' => (string) ($group['main_name'] ?? ''),
+            ];
+        })->toArray();
+
         $departmentOptionsForJs = collect($departments ?? [])->values()->all();
     @endphp
 
@@ -120,6 +126,7 @@
                                     {{ $departmentName }}
                                 </option>
                             @endforeach
+                            <option value="Unknown" {{ old('person_college_department') == 'Unknown' ? 'selected' : '' }}>Unknown</option>
                         </select>
                     </div>
                 </div>
@@ -132,6 +139,7 @@
                             <option value="Student" {{ old('person_role') == 'Student' ? 'selected' : '' }}>Student</option>
                             <option value="Faculty" {{ old('person_role') == 'Faculty' ? 'selected' : '' }}>Faculty</option>
                             <option value="Employee/Staff" {{ old('person_role') == 'Employee/Staff' ? 'selected' : '' }}>Employee/Staff</option>
+                            <option value="Unknown" {{ old('person_role') == 'Unknown' ? 'selected' : '' }}>Unknown</option>
                         </select>
                     </div>
 
@@ -149,8 +157,9 @@
                 <div class="form-group">
                     <label>Are there multiple persons involved? <span>*</span></label>
                     <div class="radio-inline-group">
-                        <label class="radio-option" for="person_has_multiple_yes"><input type="radio" id="person_has_multiple_yes" name="person_has_multiple" value="1" {{ old('person_has_multiple') === '1' ? 'checked' : '' }}> Yes</label>
-                        <label class="radio-option" for="person_has_multiple_no"><input type="radio" id="person_has_multiple_no" name="person_has_multiple" value="0" {{ old('person_has_multiple') === '0' ? 'checked' : '' }}> No</label>
+                        <label class="radio-option" for="person_has_multiple_known"><input type="radio" id="person_has_multiple_known" name="person_has_multiple" value="known" {{ old('person_has_multiple') === 'known' ? 'checked' : '' }}> Yes, known identity.</label>
+                        <label class="radio-option" for="person_has_multiple_unknown"><input type="radio" id="person_has_multiple_unknown" name="person_has_multiple" value="unknown" {{ old('person_has_multiple') === 'unknown' ? 'checked' : '' }}> Yes, unknown identity.</label>
+                        <label class="radio-option" for="person_has_multiple_no"><input type="radio" id="person_has_multiple_no" name="person_has_multiple" value="no" {{ old('person_has_multiple') === 'no' ? 'checked' : '' }}> No</label>
                     </div>
                 </div>
 
@@ -203,6 +212,7 @@
                         <option value="CoEd Building" {{ old('location') == 'CoEd Building' ? 'selected' : '' }}>CoEd Building</option>
                         <option value="CoHTM Building" {{ old('location') == 'CoHTM Building' ? 'selected' : '' }}>CoHTM Building</option>
                         <option value="LLCC MPB" {{ old('location') == 'LLCC MPB' ? 'selected' : '' }}>LLCC MPB</option>
+                        <option value="Campus Grounds" {{ old('location') == 'Campus Grounds' ? 'selected' : '' }}>Campus Grounds</option>
                         <option value="Gate 1" {{ old('location') == 'Gate 1' ? 'selected' : '' }}>Gate 1</option>
                         <option value="Gate 2" {{ old('location') == 'Gate 2' ? 'selected' : '' }}>Gate 2</option>
                     </select>
@@ -231,6 +241,18 @@
             <div id="witnessDetailsSection" style="display:none;">
                 <div id="witnessDetailsContainer"></div>
                 <button type="button" class="btn btn-secondary" id="addWitnessBtn">+ Add Another Witness</button>
+            </div>
+
+            <div class="form-group">
+                <label for="incident_additional_sheets">Additional Incident Documentation</label>
+                <input
+                    type="file"
+                    id="incident_additional_sheets"
+                    name="incident_additional_sheets[]"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    multiple
+                >
+                <small class="form-hint">Optional. Supporting documents (PDFs, images, Word docs). Max 10MB per file.</small>
             </div>
 
             <div class="form-group">
@@ -289,6 +311,7 @@
     (function () {
         var categoryData = @json($categoryDataForJs);
         var departmentOptions = @json($departmentOptionsForJs);
+        var mainCategoryMeta = @json($mainCategoryMetaForJs);
 
         var oldMainCategoryCode = @json($oldMainCategoryCode);
         var oldCategoryId = @json($oldCategoryId);
@@ -303,7 +326,8 @@
         var unknownPersonSection = document.getElementById('unknownPersonSection');
         var technicalFacilitySection = document.getElementById('technicalFacilitySection');
 
-        var multipleYesRadio = document.getElementById('person_has_multiple_yes');
+        var multipleKnownRadio = document.getElementById('person_has_multiple_known');
+        var multipleUnknownRadio = document.getElementById('person_has_multiple_unknown');
         var multipleNoRadio = document.getElementById('person_has_multiple_no');
         var additionalPersonsSection = document.getElementById('additionalPersonsSection');
         var additionalPersonsContainer = document.getElementById('additionalPersonsContainer');
@@ -333,25 +357,38 @@
             return selected ? selected.value : '';
         }
 
+        function normalizeMainCode(mainCode) {
+            return String(mainCode || '').trim().toUpperCase();
+        }
+
         function isTechnicalFacilityMainCategory(mainCode) {
-            if (!mainCode || !categoryData[mainCode] || !categoryData[mainCode].length) {
+            var normalized = normalizeMainCode(mainCode);
+
+            if (!normalized) {
                 return false;
             }
 
-            var firstCategory = categoryData[mainCode][0];
-            var name = (firstCategory && firstCategory.name ? firstCategory.name : '').toLowerCase();
+            // Explicitly treat Group G as technical/facility.
+            if (normalized === 'G') {
+                return true;
+            }
 
-            return name.indexOf('technical') !== -1 || name.indexOf('facility') !== -1;
+            var mainName = (mainCategoryMeta[normalized] && mainCategoryMeta[normalized].main_name)
+                ? String(mainCategoryMeta[normalized].main_name).toLowerCase()
+                : '';
+
+            return mainName.indexOf('technical') !== -1 || mainName.indexOf('facility') !== -1;
         }
 
         function populateSpecificCategories(mainCode, selectedCategoryId) {
+            var normalized = normalizeMainCode(mainCode);
             categorySelect.innerHTML = '<option value="">-- Select Specific Category --</option>';
 
-            if (!mainCode || !categoryData[mainCode]) {
+            if (!normalized || !categoryData[normalized]) {
                 return;
             }
 
-            categoryData[mainCode].forEach(function (item) {
+            categoryData[normalized].forEach(function (item) {
                 var option = document.createElement('option');
                 option.value = String(item.id);
                 option.textContent = item.name + ' (' + item.classification + ')';
@@ -370,11 +407,13 @@
                 }
             });
 
-            if (multipleYesRadio) multipleYesRadio.required = enabled;
+            if (multipleKnownRadio) multipleKnownRadio.required = enabled;
+            if (multipleUnknownRadio) multipleUnknownRadio.required = enabled;
             if (multipleNoRadio) multipleNoRadio.required = enabled;
 
             if (!enabled) {
-                if (multipleYesRadio) multipleYesRadio.checked = false;
+                if (multipleKnownRadio) multipleKnownRadio.checked = false;
+                if (multipleUnknownRadio) multipleUnknownRadio.checked = false;
                 if (multipleNoRadio) multipleNoRadio.checked = false;
                 additionalPersonsSection.style.display = 'none';
                 additionalPersonsContainer.innerHTML = '';
@@ -411,6 +450,7 @@
                 '      <label>College/Department <span>*</span></label>' +
                 '      <select name="additional_persons[' + index + '][college_department]">' +
                          buildDepartmentOptionsHtml(collegeDepartment) +
+                '        <option value="Unknown"' + (collegeDepartment === 'Unknown' ? ' selected' : '') + '>Unknown</option>' +
                 '      </select>' +
                 '    </div>' +
                 '  </div>' +
@@ -422,6 +462,7 @@
                 '        <option value="Student" ' + (role === 'Student' ? 'selected' : '') + '>Student</option>' +
                 '        <option value="Faculty" ' + (role === 'Faculty' ? 'selected' : '') + '>Faculty</option>' +
                 '        <option value="Employee/Staff" ' + (role === 'Employee/Staff' ? 'selected' : '') + '>Employee/Staff</option>' +
+                '        <option value="Unknown" ' + (role === 'Unknown' ? 'selected' : '') + '>Unknown</option>' +
                 '      </select>' +
                 '    </div>' +
                 '    <div class="form-group">' +
@@ -473,10 +514,15 @@
         }
 
         function toggleAdditionalPersons() {
-            var show = multipleYesRadio && multipleYesRadio.checked;
-            additionalPersonsSection.style.display = show ? 'block' : 'none';
+            var showKnown = multipleKnownRadio && multipleKnownRadio.checked;
+            var showUnknown = multipleUnknownRadio && multipleUnknownRadio.checked;
+            additionalPersonsSection.style.display = showKnown ? 'block' : 'none';
+            var unknownPersonSection = document.getElementById('unknownPersonSection');
+            if (unknownPersonSection) {
+                unknownPersonSection.style.display = showUnknown ? 'block' : 'none';
+            }
 
-            if (show && additionalPersonsContainer.querySelectorAll('.form-card').length === 0) {
+            if (showKnown && additionalPersonsContainer.querySelectorAll('.form-card').length === 0) {
                 if (oldAdditionalPersons.length > 0) {
                     oldAdditionalPersons.forEach(function (person) {
                         addPerson(person);
@@ -488,7 +534,7 @@
 
             additionalPersonsContainer.querySelectorAll('input, select').forEach(function (el) {
                 if (el.name.includes('[full_name]') || el.name.includes('[college_department]') || el.name.includes('[role]')) {
-                    el.required = show;
+                    el.required = showKnown;
                 } else {
                     el.required = false;
                 }
@@ -524,6 +570,13 @@
             unknownPersonSection.style.display = showUnknown ? 'block' : 'none';
 
             setKnownSectionRequirements(showKnown);
+
+            // Clear person_has_multiple when switching away from known
+            if (!showKnown) {
+                if (multipleKnownRadio) multipleKnownRadio.checked = false;
+                if (multipleUnknownRadio) multipleUnknownRadio.checked = false;
+                if (multipleNoRadio) multipleNoRadio.checked = false;
+            }
 
             if (unknownPersonDetails) {
                 unknownPersonDetails.required = showUnknown;
@@ -581,7 +634,8 @@
             }
         });
 
-        if (multipleYesRadio) multipleYesRadio.addEventListener('change', toggleAdditionalPersons);
+        if (multipleKnownRadio) multipleKnownRadio.addEventListener('change', toggleAdditionalPersons);
+        if (multipleUnknownRadio) multipleUnknownRadio.addEventListener('change', toggleAdditionalPersons);
         if (multipleNoRadio) multipleNoRadio.addEventListener('change', toggleAdditionalPersons);
 
         if (yesRadio) yesRadio.addEventListener('change', toggleWitnessDetails);

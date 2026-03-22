@@ -5,31 +5,17 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Department;
+use App\Models\PendingEmployeeRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     private const OTP_MAX_ATTEMPTS = 5;
     private const OTP_LOCKOUT_MINUTES = 15;
     private const EMPLOYEE_STAFF_ACCESS_CODE = 'LLCC@2026*&^%$#@!';
-
-    private function generateEmployeePlaceholderEmail(string $firstName, string $lastName): string
-    {
-        $first = Str::slug($firstName, '');
-        $last = Str::slug($lastName, '');
-        $namePart = trim($first . $last);
-        $namePart = $namePart !== '' ? $namePart : 'employee';
-
-        do {
-            $candidate = $namePart . '+' . now()->format('YmdHis') . random_int(100, 999) . '@employee.llcc.local';
-        } while (User::where('email', $candidate)->exists());
-
-        return $candidate;
-    }
 
     public function showLoginRegister()
     {
@@ -53,48 +39,38 @@ class AuthController extends Controller
     {
         $isEmployeeStaff = $request->input('registrant_type') === 'employee_staff';
 
+        if ($isEmployeeStaff) {
+            return $this->handleEmployeeRegistration($request);
+        }
+
         $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name'  => 'required|string|max:255',
-            'email'      => 'exclude_if:registrant_type,employee_staff|required|email|regex:/@llcc\.edu\.ph$/|unique:users,email',
+            'email'      => 'required|email|regex:/@llcc\.edu\.ph$/|unique:users,email',
             'password'   => 'required|min:6|confirmed',
-            'registrant_type' => 'required|in:student,faculty,employee_staff',
-            'department_id' => 'required_unless:registrant_type,employee_staff|nullable|exists:departments,id',
-            'employee_access_code' => 'required_if:registrant_type,employee_staff|nullable|string|max:100',
+            'registrant_type' => 'required|in:student,faculty',
+            'department_id' => 'required|exists:departments,id',
         ]);
-
-        if ($isEmployeeStaff && !hash_equals(self::EMPLOYEE_STAFF_ACCESS_CODE, (string) $request->employee_access_code)) {
-            return back()->withInput()->withErrors([
-                'employee_access_code' => 'The code provided by Top Management is incorrect.',
-            ]);
-        }
 
         $otp = (string) random_int(100000, 999999);
         $otpExpiry = now()->addMinutes(10);
-        $resolvedEmail = $isEmployeeStaff
-            ? $this->generateEmployeePlaceholderEmail((string) $request->first_name, (string) $request->last_name)
-            : (string) $request->email;
 
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name'  => $request->last_name,
-            'email'      => $resolvedEmail,
+            'email'      => (string) $request->email,
             'password'   => Hash::make($request->password),
-            'department_id' => $isEmployeeStaff ? null : $request->department_id,
+            'department_id' => $request->department_id,
             'registrant_type' => $request->registrant_type,
             'employee_office' => null,
-            'employee_id_number' => $isEmployeeStaff ? (string) $request->employee_access_code : null,
-            'email_verification_otp' => $isEmployeeStaff ? null : $otp,
-            'email_verification_otp_expires_at' => $isEmployeeStaff ? null : $otpExpiry,
+            'employee_id_number' => null,
+            'email_verification_otp' => $otp,
+            'email_verification_otp_expires_at' => $otpExpiry,
             'otp_attempts' => 0,
             'otp_locked_until' => null,
-            'email_verified_at' => $isEmployeeStaff ? now() : null,
+            'email_verified_at' => null,
             'status' => 'active'
         ]);
-
-        if ($isEmployeeStaff) {
-            return redirect()->route('sinclogin')->with('success', 'Employee/Staff registration completed and automatically verified. You can now sign in.');
-        }
 
         Mail::raw(
             "Your Sincidentre registration OTP is {$otp}. It will expire in 10 minutes.",
@@ -109,6 +85,31 @@ class AuthController extends Controller
 
         return redirect()->route('sincregister.otp.form')
             ->with('success', 'Registration received. Enter the OTP sent to your email to complete verification.');
+    }
+
+    private function handleEmployeeRegistration(Request $request)
+    {
+        $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'employee_username' => 'required|string|max:50|unique:users,username|unique:pending_employee_registrations,username',
+            'employee_email' => 'required|email|unique:users,email|unique:pending_employee_registrations,email',
+            'password'   => 'required|min:6|confirmed',
+        ]);
+
+        PendingEmployeeRegistration::create([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'username' => $request->employee_username,
+            'email' => $request->employee_email,
+            'password' => Hash::make($request->password),
+            'status' => PendingEmployeeRegistration::STATUS_PENDING,
+        ]);
+
+        // TODO: Send notification to Top Management about pending registration
+
+        return redirect()->route('sinclogin')->with('success',
+            'Employee/Staff registration request submitted successfully. You will receive an email notification once your registration is approved by Top Management.');
     }
 
     public function showOtpForm(Request $request)
@@ -239,13 +240,33 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+        $loginType = $request->input('login_type', 'student_faculty');
+
+        // Validate based on login type
+        if ($loginType === 'employee') {
+            $request->validate([
+                'username' => 'required|string',
+                'password' => 'required'
+            ]);
+
+            $credentials = [
+                'username' => $request->username,
+                'password' => $request->password,
+            ];
+        } else {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required'
+            ]);
+
+            $credentials = [
+                'email' => $request->email,
+                'password' => $request->password,
+            ];
+        }
 
         // Attempt to authenticate the user
-        if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
             $user = Auth::user();

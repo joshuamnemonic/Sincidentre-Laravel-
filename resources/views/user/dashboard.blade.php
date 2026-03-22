@@ -61,12 +61,6 @@
             <h3>Dashboard Overview</h3>
 
             <div class="overview-grid" aria-label="Dashboard overview">
-                <section class="overview-card overview-attention">
-                    <h4>Attention Required</h4>
-                    <p class="overview-metric">{{ $attentionReports }}</p>
-                    <p class="overview-text">Pending, under review, and rejected reports that may need action.</p>
-                    <a href="{{ route('myreports', ['status' => [\App\Models\Report::STATUS_PENDING, \App\Models\Report::STATUS_UNDER_REVIEW, \App\Models\Report::STATUS_REJECTED]]) }}" class="btn-primary overview-link">View Priority Reports</a>
-                </section>
 
                 <section class="overview-card overview-health">
                     <h4>My Report Health</h4>
@@ -168,7 +162,7 @@
 
         .dashboard-lite .overview-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.85rem;
             padding: 1rem 1.25rem;
         }
@@ -320,4 +314,3 @@
         }
     </style>
 @endpush
-

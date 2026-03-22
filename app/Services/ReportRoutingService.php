@@ -105,21 +105,27 @@ class ReportRoutingService
 
     private function resolveFallbackAssignee(Report $report, string $classification): ?User
     {
-        if (in_array($classification, ['Major', 'Grave'], true)) {
-            return User::query()
-                ->where('status', 'active')
-                ->where('is_top_management', 1)
-                ->orderBy('id')
-                ->first();
-        }
-
-        return User::query()
+        // All reports (including Major/Grave) should go to DSDO first.
+        // Major/Grave cases require manual escalation to Top Management via the escalation form.
+        $dsdo = User::query()
             ->where('status', 'active')
             ->where('is_department_student_discipline_officer', 1)
             ->where('is_top_management', 0)
             ->where('department_id', $report->user?->department_id)
             ->orderBy('id')
             ->first();
+
+        // If no department-specific DSDO found, try to find any active DSDO
+        if (!$dsdo) {
+            $dsdo = User::query()
+                ->where('status', 'active')
+                ->where('is_department_student_discipline_officer', 1)
+                ->where('is_top_management', 0)
+                ->orderBy('id')
+                ->first();
+        }
+
+        return $dsdo;
     }
 
     private function matchesKeywords(string $haystack, array $keywords): bool
