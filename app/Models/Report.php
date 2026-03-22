@@ -101,7 +101,7 @@ class Report extends Model
         'suspension_effective_date' => 'date',
         'appeal_deadline_at' => 'datetime',
         'suspension_issued_at' => 'datetime',
-        'person_has_multiple' => 'boolean',
+        'person_has_multiple' => 'string',
         'additional_persons' => 'array',
         'has_witnesses' => 'boolean',
         'witness_details' => 'array',

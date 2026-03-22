@@ -110,8 +110,8 @@
         <!-- User Profile Card -->
         <div class="user-profile-card">
             <div class="user-avatar">
-                @if(Auth::user()->profile_picture)
-                    <img src="{{ asset(Auth::user()->profile_picture) }}" alt="Profile">
+                @if(Auth::user()->profile_picture_url)
+                    <img src="{{ Auth::user()->profile_picture_url }}" alt="Profile">
                 @else
                     <div class="avatar-placeholder">{{ strtoupper(substr(Auth::user()->first_name, 0, 1)) }}</div>
                 @endif

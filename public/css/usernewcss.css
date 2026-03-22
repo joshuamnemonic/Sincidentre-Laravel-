@@ -982,14 +982,12 @@ button[type="submit"]:hover,
   white-space: nowrap;
 }
 
+
 .btn-secondary,
-.cancel-btn,
-a.btn {
+.btn-submit {
   flex: 1;
+  min-width: 120px;
   padding: 0.9rem 1.5rem;
-  background: #ef4444;
-  color: #ffffff;
-  border: none;
   border-radius: 0.5rem;
   font-weight: 600;
   font-size: 0.95rem;
@@ -1000,6 +998,18 @@ a.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.btn-secondary {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-submit {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
 }
 
 .btn-secondary:hover,
@@ -1442,6 +1452,55 @@ tbody tr:last-child td {
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* File Link (Response History Attachments) */
+.file-link {
+  color: #93c5fd;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  background: rgba(147, 197, 253, 0.15);
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.file-link:hover {
+  background: rgba(147, 197, 253, 0.3);
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+/* Response Card (in Response History) */
+.response-card {
+  border-left: 3px solid rgba(93, 197, 253, 0.5);
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.4rem;
+}
+
+.response-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.response-card-head strong {
+  color: #93c5fd;
+  font-size: 0.95rem;
+}
+
+.response-card-head small {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
 }
 
 /* No Data */

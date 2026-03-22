@@ -27,7 +27,9 @@ class ReportController extends Controller
             ->get();
 
         $categoriesByMain = $categories
-            ->groupBy('main_category_code')
+            ->groupBy(function ($category) {
+                return strtoupper(trim((string) $category->main_category_code));
+            })
             ->map(function ($group) {
                 return [
                     'main_name' => $group->first()->main_category_name,
@@ -48,12 +50,19 @@ class ReportController extends Controller
      */
     public function store(Request $request, ReportRoutingService $routingService)
     {
-        $allowedRoleValues = ['Student', 'Faculty', 'Employee/Staff'];
+        $allowedRoleValues = ['Student', 'Faculty', 'Employee/Staff', 'Unknown'];
         $allowedEvidenceExtensions = 'jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,mp3,wav,m4a,aac,ogg,flac,mp4,mov,avi,mkv,wmv,webm';
 
-        $hasMultiplePersons = filter_var($request->input('person_has_multiple'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
-        if (!$hasMultiplePersons) {
+        // Normalize and clean up request for new logic
+        $personHasMultiple = $request->input('person_has_multiple');
+        $personInvolvement = $request->input('person_involvement');
+        
+        if ($personHasMultiple !== 'known') {
             $request->merge(['additional_persons' => null]);
+        }
+        // Only clear unknown_person_details if it's NOT needed for person_has_multiple=unknown AND person_involvement!=unknown
+        if ($personHasMultiple !== 'unknown' && $personInvolvement !== 'unknown') {
+            $request->merge(['unknown_person_details' => null]);
         }
 
         $hasWitnesses = filter_var($request->input('has_witnesses'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
@@ -71,7 +80,7 @@ class ReportController extends Controller
             'person_role' => ['nullable', Rule::in($allowedRoleValues)],
             'person_contact_number' => 'nullable|string|max:50',
             'person_email_address' => 'nullable|email|max:255',
-            'person_has_multiple' => 'nullable|boolean',
+            'person_has_multiple' => ['required_if:person_involvement,known', Rule::in(['known', 'unknown', 'no'])],
             'additional_persons' => 'nullable|array',
             'additional_persons.*.full_name' => 'nullable|string|max:255',
             'additional_persons.*.college_department' => 'nullable|string|max:255',
@@ -83,15 +92,16 @@ class ReportController extends Controller
 
             'description' => 'required|string',
             'incident_date' => 'required|date',
-            'incident_time' => 'required',
+            'incident_time' => 'required|date_format:H:i',
             'location' => 'required|string|max:255',
             'location_details' => 'nullable|string|max:255',
 
-            'has_witnesses' => 'required|boolean',
+            'has_witnesses' => 'required|in:0,1',
             'witness_details' => 'exclude_unless:has_witnesses,1|required|array|min:1',
             'witness_details.*.name' => 'exclude_unless:has_witnesses,1|required|string|max:255',
             'witness_details.*.address' => 'exclude_unless:has_witnesses,1|required|string|max:255',
             'witness_details.*.contact_number' => 'exclude_unless:has_witnesses,1|required|string|max:50',
+            'incident_additional_sheets' => 'nullable|array',
             'incident_additional_sheets.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
 
             'informant_contact_number' => 'nullable|string|max:50',
@@ -101,7 +111,41 @@ class ReportController extends Controller
 
         $validator->after(function ($validator) use ($request, $allowedRoleValues) {
             $personInvolvement = (string) $request->input('person_involvement');
-            $hasMultiple = filter_var($request->input('person_has_multiple'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $personHasMultiple = $request->input('person_has_multiple');
+
+            if ($personHasMultiple === 'known') {
+                $additionalPersons = (array) $request->input('additional_persons', []);
+                if (empty($additionalPersons)) {
+                    $validator->errors()->add('additional_persons', 'Add at least one additional person when multiple persons are involved.');
+                }
+                foreach ($additionalPersons as $index => $person) {
+                    if (!is_array($person)) {
+                        $validator->errors()->add("additional_persons.{$index}.full_name", 'Additional person entry is invalid.');
+                        continue;
+                    }
+                    if (trim((string) ($person['full_name'] ?? '')) === '') {
+                        $validator->errors()->add("additional_persons.{$index}.full_name", 'Full name is required for each additional person.');
+                    }
+                    if (trim((string) ($person['college_department'] ?? '')) === '') {
+                        $validator->errors()->add("additional_persons.{$index}.college_department", 'College/Department is required for each additional person.');
+                    }
+                    if (!in_array((string) ($person['role'] ?? ''), $allowedRoleValues, true)) {
+                        $validator->errors()->add("additional_persons.{$index}.role", 'A valid role is required for each additional person.');
+                    }
+                }
+            }
+
+            if ($personHasMultiple === 'unknown') {
+                if (!$request->filled('unknown_person_details')) {
+                    $validator->errors()->add('unknown_person_details', 'Unknown identity details are required when additional persons identity is unknown.');
+                }
+            }
+
+            if ($personInvolvement === 'unknown') {
+                if (!$request->filled('unknown_person_details')) {
+                    $validator->errors()->add('unknown_person_details', 'Unknown person details are required when person identity is unknown.');
+                }
+            }
 
             if ($personInvolvement === 'known') {
                 if (!$request->filled('person_full_name')) {
@@ -113,41 +157,12 @@ class ReportController extends Controller
                 if (!$request->filled('person_role') || !in_array($request->input('person_role'), $allowedRoleValues, true)) {
                     $validator->errors()->add('person_role', 'A valid role is required when person identity is known.');
                 }
-                if ($hasMultiple === null) {
-                    $validator->errors()->add('person_has_multiple', 'Please indicate if multiple persons are involved.');
-                }
-                if ($hasMultiple === true && empty($request->input('additional_persons', []))) {
-                    $validator->errors()->add('additional_persons', 'Add at least one additional person when multiple persons are involved.');
-                }
-
-                if ($hasMultiple === true) {
-                    foreach ((array) $request->input('additional_persons', []) as $index => $person) {
-                        if (!is_array($person)) {
-                            $validator->errors()->add("additional_persons.{$index}.full_name", 'Additional person entry is invalid.');
-                            continue;
-                        }
-
-                        if (trim((string) ($person['full_name'] ?? '')) === '') {
-                            $validator->errors()->add("additional_persons.{$index}.full_name", 'Full name is required for each additional person.');
-                        }
-
-                        if (trim((string) ($person['college_department'] ?? '')) === '') {
-                            $validator->errors()->add("additional_persons.{$index}.college_department", 'College/Department is required for each additional person.');
-                        }
-
-                        if (!in_array((string) ($person['role'] ?? ''), $allowedRoleValues, true)) {
-                            $validator->errors()->add("additional_persons.{$index}.role", 'A valid role is required for each additional person.');
-                        }
-                    }
-                }
-            }
-
-            if ($personInvolvement === 'unknown' && !$request->filled('unknown_person_details')) {
-                $validator->errors()->add('unknown_person_details', 'Unknown identity details are required when identity is unknown.');
             }
 
             $category = Category::find($request->input('category_id'));
-            if ($category && (string) $category->main_category_code !== (string) $request->input('main_category_code')) {
+            $selectedMainCode = strtoupper(trim((string) $request->input('main_category_code')));
+
+            if ($category && strtoupper(trim((string) $category->main_category_code)) !== $selectedMainCode) {
                 $validator->errors()->add('category_id', 'Selected category does not match the selected main category group.');
             }
 
@@ -205,10 +220,10 @@ class ReportController extends Controller
             'person_contact_number'        => $validated['person_contact_number'] ?? null,
             'person_email_address'         => $validated['person_email_address'] ?? null,
             'person_involvement'           => $validated['person_involvement'],
-            'unknown_person_details'       => $validated['person_involvement'] === 'unknown' ? ($validated['unknown_person_details'] ?? null) : null,
+            'unknown_person_details'       => (($validated['person_has_multiple'] ?? null) === 'unknown' || $validated['person_involvement'] === 'unknown') ? ($validated['unknown_person_details'] ?? null) : null,
             'technical_facility_details'   => $validated['technical_facility_details'] ?? null,
-            'person_has_multiple'          => $validated['person_involvement'] === 'known' ? (bool) ($validated['person_has_multiple'] ?? false) : false,
-            'additional_persons'           => ($validated['person_involvement'] === 'known' && !empty($validated['additional_persons'])) ? $validated['additional_persons'] : null,
+            'person_has_multiple'          => $validated['person_has_multiple'] ?? null,
+            'additional_persons'           => ((($validated['person_has_multiple'] ?? null) === 'known') && !empty($validated['additional_persons'])) ? $validated['additional_persons'] : null,
             'has_witnesses'                => (bool) $validated['has_witnesses'],
             'witness_attachment'           => null,
             'witness_details'              => !empty($validated['witness_details']) ? $validated['witness_details'] : null,

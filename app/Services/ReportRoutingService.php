@@ -22,6 +22,14 @@ class ReportRoutingService
         $routingGroupCode = strtolower((string) ($report->category?->routing_group_code ?? ''));
 
         $assignee = $this->resolveRuleBasedAssignee($categoryName, $mainCategoryName, $classification, $routingGroupCode, $stage);
+        $preferTopManagement = $stage === 'submission' && $this->isTopManagementFirstGroup($routingGroupCode);
+
+        if ($stage === 'submission' && !$preferTopManagement && $assignee && (bool) $assignee->is_top_management) {
+            $fallbackDsdo = $this->resolveFallbackAssignee($report, $classification);
+            if ($fallbackDsdo) {
+                $assignee = $fallbackDsdo;
+            }
+        }
 
         if (!$assignee) {
             $assignee = $this->resolveFallbackAssignee($report, $classification);
@@ -88,10 +96,13 @@ class ReportRoutingService
                 }
             }
 
+            $preferTopManagement = $stage === 'submission' && $this->isTopManagementFirstGroup($routingGroupCode);
+            $orderByTopManagement = $preferTopManagement ? 'desc' : ($stage === 'submission' ? 'asc' : 'desc');
+
             $assignee = User::query()
                 ->where('status', 'active')
                 ->where('routing_position_code', $rule->target_position_code)
-                ->orderByDesc('is_top_management')
+                ->orderBy('is_top_management', $orderByTopManagement)
                 ->orderBy('id')
                 ->first();
 
@@ -105,21 +116,27 @@ class ReportRoutingService
 
     private function resolveFallbackAssignee(Report $report, string $classification): ?User
     {
-        if (in_array($classification, ['Major', 'Grave'], true)) {
-            return User::query()
-                ->where('status', 'active')
-                ->where('is_top_management', 1)
-                ->orderBy('id')
-                ->first();
-        }
-
-        return User::query()
+        // All reports (including Major/Grave) should go to DSDO first.
+        // Major/Grave cases require manual escalation to Top Management via the escalation form.
+        $dsdo = User::query()
             ->where('status', 'active')
             ->where('is_department_student_discipline_officer', 1)
             ->where('is_top_management', 0)
             ->where('department_id', $report->user?->department_id)
             ->orderBy('id')
             ->first();
+
+        // If no department-specific DSDO found, try to find any active DSDO
+        if (!$dsdo) {
+            $dsdo = User::query()
+                ->where('status', 'active')
+                ->where('is_department_student_discipline_officer', 1)
+                ->where('is_top_management', 0)
+                ->orderBy('id')
+                ->first();
+        }
+
+        return $dsdo;
     }
 
     private function matchesKeywords(string $haystack, array $keywords): bool
@@ -140,5 +157,11 @@ class ReportRoutingService
         }
 
         return false;
+    }
+
+    private function isTopManagementFirstGroup(string $routingGroupCode): bool
+    {
+        $normalized = strtolower(trim($routingGroupCode));
+        return in_array($normalized, ['facilities_electricity', 'networks_iot'], true);
     }
 }

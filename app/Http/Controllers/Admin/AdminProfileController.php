@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminProfileController extends Controller
 {
@@ -29,7 +31,7 @@ class AdminProfileController extends Controller
         $request->validate([
             'email'                 => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone'                 => 'nullable|string|max:20',
-            'profile_picture'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'profile_picture'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'current_password'      => 'nullable|string',
             'new_password'          => 'nullable|string|min:8|confirmed',
         ]);
@@ -47,16 +49,9 @@ class AdminProfileController extends Controller
 
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
-            $file     = $request->file('profile_picture');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/profile_pictures'), $filename);
-
-            // Delete old profile picture if exists
-            if ($user->profile_picture && file_exists(public_path($user->profile_picture))) {
-                @unlink(public_path($user->profile_picture));
-            }
-
-            $user->profile_picture = 'uploads/profile_pictures/' . $filename;
+            $this->deleteProfilePicture($user->profile_picture);
+            $path = $request->file('profile_picture')->storePublicly('profile_pictures', 'public');
+            $user->profile_picture = $path;
         }
 
         // Handle password change (only if both current and new password provided)
@@ -72,5 +67,27 @@ class AdminProfileController extends Controller
         $user->save();
 
         return redirect()->route('admin.profile')->with('success', 'Profile updated successfully!');
+    }
+
+    private function deleteProfilePicture(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return;
+        }
+
+        if (Str::startsWith($path, 'uploads/')) {
+            $legacyPath = public_path($path);
+            if (file_exists($legacyPath)) {
+                @unlink($legacyPath);
+            }
+            return;
+        }
+
+        if (Str::startsWith($path, 'storage/')) {
+            $path = Str::after($path, 'storage/');
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

@@ -47,8 +47,8 @@
         <!-- Management Profile Card -->
         <div class="user-profile-card">
             <div class="user-avatar">
-                @if(Auth::user()->profile_picture)
-                    <img src="{{ asset(Auth::user()->profile_picture) }}" alt="Profile">
+                @if(Auth::user()->profile_picture_url)
+                    <img src="{{ Auth::user()->profile_picture_url }}" alt="Profile">
                 @else
                     <div class="avatar-placeholder">{{ strtoupper(substr(Auth::user()->first_name, 0, 1)) }}</div>
                 @endif
@@ -86,10 +86,26 @@
             </a>
 
             <a href="{{ route('admin.users') }}"
-               class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+               class="nav-link {{ request()->routeIs('admin.users*') && !request()->routeIs('admin.pending-employees*') ? 'active' : '' }}">
                 <span class="nav-icon">👥</span>
                 <span class="nav-text">Users</span>
             </a>
+
+            @if($isTopManagement)
+                @php
+                    $pendingCount = \App\Models\PendingEmployeeRegistration::pending()->count();
+                @endphp
+                <a href="{{ route('admin.pending-employees') }}"
+                   class="nav-link {{ request()->routeIs('admin.pending-employees*') ? 'active' : '' }}">
+                    <span class="nav-icon">⏳</span>
+                    <span class="nav-text">
+                        Pending Employees
+                        @if($pendingCount > 0)
+                            <span class="nav-badge">{{ $pendingCount }}</span>
+                        @endif
+                    </span>
+                </a>
+            @endif
 
             @if($isTopManagement)
                 <a href="{{ route('admin.categories.index') }}"
@@ -209,6 +225,19 @@
             justify-content: flex-end;
             gap: 0.55rem;
             flex-wrap: wrap;
+        }
+
+        /* Nav Badge for Pending Counts */
+        .nav-badge {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.15rem 0.5rem;
+            background: rgba(239, 68, 68, 0.9);
+            color: #ffffff;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
         }
     </style>
 

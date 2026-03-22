@@ -50,13 +50,32 @@ class HandleReportsController extends Controller
     private function notifyByEmail(string $email, string $subject, string $message, ?string $senderName = null): bool
     {
         try {
-            Mail::raw($message, function ($mail) use ($email, $subject, $senderName) {
-                $mail->to($email)->subject($subject);
+            $appName = (string) config('app.name', 'Sincidentre');
+            $portalUrl = url('/');
+            $supportEmail = (string) config('mail.from.address');
+            $fromName = $senderName ?: "{$appName} Team";
 
-                if (!empty($senderName) && !empty(config('mail.from.address'))) {
-                    $mail->from(config('mail.from.address'), $senderName);
+            $data = [
+                'appName' => $appName,
+                'subject' => $subject,
+                'message' => $message,
+                'portalUrl' => $portalUrl,
+                'supportEmail' => $supportEmail,
+                'senderName' => $fromName,
+            ];
+
+            Mail::send(
+                ['html' => 'emails.system-notice', 'text' => 'emails.system-notice-text'],
+                $data,
+                function ($mail) use ($email, $subject, $fromName, $supportEmail) {
+                    $mail->to($email)->subject($subject);
+
+                    if ($supportEmail !== '') {
+                        $mail->from($supportEmail, $fromName);
+                    }
                 }
-            });
+            );
+
             return true;
         } catch (\Throwable $e) {
             return false;
@@ -66,6 +85,11 @@ class HandleReportsController extends Controller
     private function getHearingSenderName(User $admin): string
     {
         return $admin->is_top_management ? 'LLCC Top Management' : 'LLCC DSDO';
+    }
+
+    private function getActionSenderName(User $admin): string
+    {
+        return $this->getHearingSenderName($admin);
     }
 
     private function getReportRuleLabel(Report $report): string
@@ -304,8 +328,12 @@ class HandleReportsController extends Controller
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $defaultPreviewStatuses = ['approved', 'under review'];
-        $filterableStatuses = ['approved', 'rejected', 'under review', 'resolved'];
+        $defaultPreviewStatuses = (bool) $admin->is_top_management
+            ? ['approved', 'under review']
+            : ['under review', 'approved']; // Exclude 'pending' for DSDO
+        $filterableStatuses = (bool) $admin->is_top_management
+            ? ['approved', 'rejected', 'under review', 'resolved']
+            : ['pending', 'approved', 'rejected', 'under review', 'resolved'];
         $selectedStatus = strtolower((string) $request->get('status', ''));
         if (!in_array($selectedStatus, $filterableStatuses, true)) {
             $selectedStatus = '';
@@ -401,7 +429,10 @@ class HandleReportsController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
 
         if ($sortBy === 'status') {
-            $query->orderByRaw("FIELD(LOWER(status), 'approved', 'rejected', 'under review', 'resolved')");
+            $statusOrder = (bool) $admin->is_top_management
+                ? "FIELD(LOWER(status), 'under review', 'approved', 'rejected', 'resolved')"
+                : "FIELD(LOWER(status), 'pending', 'under review', 'approved', 'rejected', 'resolved')";
+            $query->orderByRaw($statusOrder);
         } elseif ($sortBy === 'priority') {
             // Assuming you have a priority field
             $query->orderBy('priority', $sortOrder);
@@ -488,6 +519,10 @@ class HandleReportsController extends Controller
             'under_review' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['under review']), $admin)->count(),
             'resolved' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['resolved']), $admin)->count(),
         ];
+
+        if (!(bool) $admin->is_top_management) {
+            $statusCounts['pending'] = $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['pending']), $admin)->count();
+        }
 
         return view('admin.handlereports', compact(
             'approvedReports', 
@@ -812,8 +847,9 @@ class HandleReportsController extends Controller
 
         $noticeSubject = 'Written Reprimand Update - Report #' . $report->id;
         $noticeMessage = 'Written reprimand has been printed and recorded for this case. Please log in to view case updates.';
+        $senderName = $this->getActionSenderName($admin);
         if (!empty($report->user?->email)) {
-            $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage);
+            $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage, $senderName);
         }
 
         Activity::create([
@@ -934,9 +970,8 @@ class HandleReportsController extends Controller
         ]);
 
         $selectedStatus = Report::normalizeStatus($validated['step3_status']);
-        if ($selectedStatus === Report::STATUS_RESOLVED && !$this->canCurrentUserResolve($admin, $report)) {
-            return back()->withInput()->with('error', 'Resolved is currently blocked by assignment and escalation rules for this report.');
-        }
+        // Form 2305 is a final disciplinary action - Top Management can always set status to Resolved here
+        // This overrides the normal canCurrentUserResolve check since suspension/dismissal is a conclusive action
 
         if ($validated['disciplinary_action'] === 'Suspension' && empty($validated['suspension_days'])) {
             return back()->withInput()->with('error', 'Suspension days is required for suspension action.');
@@ -1005,8 +1040,9 @@ class HandleReportsController extends Controller
 
         $noticeSubject = $validated['disciplinary_action'] . ' Notice - Report #' . $report->id;
         $noticeMessage = $validated['disciplinary_action'] . ' details were recorded for this case. Please log in to your account for updated case details.';
+        $senderName = $this->getActionSenderName($admin);
         if (!empty($report->user?->email)) {
-            $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage);
+            $this->notifyByEmail($report->user->email, $noticeSubject, $noticeMessage, $senderName);
         }
 
         Activity::create([
@@ -1048,7 +1084,9 @@ class HandleReportsController extends Controller
             'escalation_note' => 'nullable|string|max:1000',
             'step4_remarks' => 'required|string|max:1000',
             'step4_target_date' => 'nullable|date|after_or_equal:today',
-            'step4_attachment' => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,zip',
+            'step4_attachment' => 'required|file|max:10240|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,zip',
+        ], [
+            'step4_attachment.required' => 'An attachment is required to escalate this report. Please attach supporting documents.',
         ]);
 
         $targetHandler = User::query()
@@ -1230,6 +1268,7 @@ class HandleReportsController extends Controller
             'remarks'     => 'required|string|max:1000',
             'status'      => 'required|in:Under Review,Resolved',
             'assigned_to_user_id' => 'nullable|exists:users,id',
+            'attachment' => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,zip',
         ], [
             'target_date.after_or_equal' => 'Target date must be today or a future date.',
             'department_id.required' => 'Please select a department.',
@@ -1274,7 +1313,10 @@ class HandleReportsController extends Controller
             return redirect()->back()->withInput()->with('error', 'DSDO cannot resolve this report unless it is currently assigned to their account after escalation.');
         }
 
-        DB::transaction(function () use ($request, $report, $admin, $oldStatus, $newStatus, $selectedDepartment, $resolvedAssignedTo, $selectedAssignee) {
+        // Handle attachment upload
+        $attachmentPath = $this->storeResponseAttachment($request, 'attachment');
+
+        DB::transaction(function () use ($request, $report, $admin, $oldStatus, $newStatus, $selectedDepartment, $resolvedAssignedTo, $selectedAssignee, $attachmentPath) {
             $lockedReport = Report::whereKey($report->id)->lockForUpdate()->firstOrFail();
             $nextStatus = $newStatus;
             $assignedPositionCode = $selectedAssignee?->routing_position_code
@@ -1293,6 +1335,7 @@ class HandleReportsController extends Controller
                 'target_date' => $request->target_date,
                 'status' => $nextStatus,
                 'remarks' => $request->remarks,
+                'attachment_path' => $attachmentPath,
             ]);
 
             // Keep report row as the latest snapshot for listing/filtering.

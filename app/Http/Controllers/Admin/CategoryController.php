@@ -71,7 +71,6 @@ class CategoryController extends Controller
                     $resolvedMainCode = $selectedMainCode === 'CUSTOM'
                         ? strtoupper((string) $request->input('customMainCategoryCode', ''))
                         : $selectedMainCode;
-
                     return $query->where('main_category_code', $resolvedMainCode);
                 }),
             ],
@@ -79,6 +78,7 @@ class CategoryController extends Controller
             'customMainCategoryCode' => 'nullable|required_if:mainCategoryCode,custom|string|max:1',
             'mainCategoryName' => 'required|string|max:255',
             'classification' => ['required', Rule::in(['Minor', 'Major', 'Grave'])],
+            'routing_group_code' => ['required', Rule::in(['disciplinary', 'top_management', 'networks_iot', 'facilities_electricity'])],
         ]);
 
         $category = Category::create([
@@ -86,6 +86,7 @@ class CategoryController extends Controller
             'main_category_code' => $resolvedMainCode,
             'main_category_name' => $validated['mainCategoryName'],
             'classification' => $validated['classification'],
+            'routing_group_code' => $validated['routing_group_code'],
         ]);
 
         ActivityLogger::log(
