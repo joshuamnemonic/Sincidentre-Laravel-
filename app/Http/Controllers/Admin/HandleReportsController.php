@@ -50,13 +50,32 @@ class HandleReportsController extends Controller
     private function notifyByEmail(string $email, string $subject, string $message, ?string $senderName = null): bool
     {
         try {
-            Mail::raw($message, function ($mail) use ($email, $subject, $senderName) {
-                $mail->to($email)->subject($subject);
+            $appName = (string) config('app.name', 'Sincidentre');
+            $portalUrl = url('/');
+            $supportEmail = (string) config('mail.from.address');
+            $fromName = $senderName ?: "{$appName} Team";
 
-                if (!empty($senderName) && !empty(config('mail.from.address'))) {
-                    $mail->from(config('mail.from.address'), $senderName);
+            $data = [
+                'appName' => $appName,
+                'subject' => $subject,
+                'message' => $message,
+                'portalUrl' => $portalUrl,
+                'supportEmail' => $supportEmail,
+                'senderName' => $fromName,
+            ];
+
+            Mail::send(
+                ['html' => 'emails.system-notice', 'text' => 'emails.system-notice-text'],
+                $data,
+                function ($mail) use ($email, $subject, $fromName, $supportEmail) {
+                    $mail->to($email)->subject($subject);
+
+                    if ($supportEmail !== '') {
+                        $mail->from($supportEmail, $fromName);
+                    }
                 }
-            });
+            );
+
             return true;
         } catch (\Throwable $e) {
             return false;
@@ -309,8 +328,12 @@ class HandleReportsController extends Controller
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $defaultPreviewStatuses = ['approved', 'under review'];
-        $filterableStatuses = ['approved', 'rejected', 'under review', 'resolved'];
+        $defaultPreviewStatuses = (bool) $admin->is_top_management
+            ? ['approved', 'under review']
+            : ['under review', 'approved']; // Exclude 'pending' for DSDO
+        $filterableStatuses = (bool) $admin->is_top_management
+            ? ['approved', 'rejected', 'under review', 'resolved']
+            : ['pending', 'approved', 'rejected', 'under review', 'resolved'];
         $selectedStatus = strtolower((string) $request->get('status', ''));
         if (!in_array($selectedStatus, $filterableStatuses, true)) {
             $selectedStatus = '';
@@ -406,7 +429,10 @@ class HandleReportsController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
 
         if ($sortBy === 'status') {
-            $query->orderByRaw("FIELD(LOWER(status), 'approved', 'rejected', 'under review', 'resolved')");
+            $statusOrder = (bool) $admin->is_top_management
+                ? "FIELD(LOWER(status), 'under review', 'approved', 'rejected', 'resolved')"
+                : "FIELD(LOWER(status), 'pending', 'under review', 'approved', 'rejected', 'resolved')";
+            $query->orderByRaw($statusOrder);
         } elseif ($sortBy === 'priority') {
             // Assuming you have a priority field
             $query->orderBy('priority', $sortOrder);
@@ -493,6 +519,10 @@ class HandleReportsController extends Controller
             'under_review' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['under review']), $admin)->count(),
             'resolved' => $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['resolved']), $admin)->count(),
         ];
+
+        if (!(bool) $admin->is_top_management) {
+            $statusCounts['pending'] = $this->applyRoleVisibility(Report::whereRaw('LOWER(status) = ?', ['pending']), $admin)->count();
+        }
 
         return view('admin.handlereports', compact(
             'approvedReports', 

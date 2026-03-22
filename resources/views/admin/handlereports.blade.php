@@ -73,6 +73,9 @@
                             <label for="status_filter" class="hfp-label">Status</label>
                             <select name="status" id="status_filter">
                                 <option value="">All Statuses</option>
+                                @if(!(bool) (Auth::user()->is_top_management ?? false))
+                                    <option value="pending"      {{ ($selectedStatus ?? '') === 'pending'      ? 'selected' : '' }}>Pending</option>
+                                @endif
                                 <option value="approved"     {{ ($selectedStatus ?? '') === 'approved'     ? 'selected' : '' }}>Approved</option>
                                 <option value="rejected"     {{ ($selectedStatus ?? '') === 'rejected'     ? 'selected' : '' }}>Rejected</option>
                                 <option value="under review" {{ ($selectedStatus ?? '') === 'under review' ? 'selected' : '' }}>Under Review</option>

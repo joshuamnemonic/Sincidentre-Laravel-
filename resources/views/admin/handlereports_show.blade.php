@@ -828,7 +828,15 @@
                 <form action="{{ route('admin.handlereports.update', $report->id) }}" method="POST" class="hform">
                     @csrf
                     @method('PUT')
-                    <input type="hidden" name="status" value="Under Review">
+                    <div class="form-group">
+                        <label><strong>Status</strong></label>
+                        <select name="status" required>
+                            <option value="{{ \App\Models\Report::STATUS_UNDER_REVIEW }}" {{ old('status', \App\Models\Report::STATUS_UNDER_REVIEW) === \App\Models\Report::STATUS_UNDER_REVIEW ? 'selected' : '' }}>Under Review</option>
+                            @if($canResolve)
+                            <option value="{{ \App\Models\Report::STATUS_RESOLVED }}" {{ old('status') === \App\Models\Report::STATUS_RESOLVED ? 'selected' : '' }}>Resolved</option>
+                            @endif
+                        </select>
+                    </div>
                     <input type="hidden" name="department_id" value="{{ $handlerDepartmentId }}">
                     <div class="hform-grid">
                         <div class="form-group">
@@ -838,10 +846,6 @@
                         <div class="form-group">
                             <label><strong>Target Date</strong></label>
                             <input type="date" name="target_date" value="{{ old('target_date') }}" required>
-                        </div>
-                        <div class="form-group">
-                            <label><strong>Status</strong></label>
-                            <input type="text" value="Under Review" class="readonly-field" readonly>
                         </div>
                         @if($isTopManagementUser)
                         <div class="form-group hform-full">

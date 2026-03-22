@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
@@ -47,35 +49,40 @@ class ProfileController extends Controller
         $user->phone = $normalizedPhone !== '' ? $normalizedPhone : null;
 
         if (!empty($validated['remove_profile_picture']) && $user->profile_picture) {
-            $existingPath = public_path($user->profile_picture);
-            if (File::exists($existingPath)) {
-                File::delete($existingPath);
-            }
+            $this->deleteProfilePicture($user->profile_picture);
             $user->profile_picture = null;
         }
 
         if ($request->hasFile('profile_picture')) {
-            $uploadDir = public_path('uploads/profile_pictures');
-            if (!File::exists($uploadDir)) {
-                File::makeDirectory($uploadDir, 0755, true);
-            }
-
-            if ($user->profile_picture) {
-                $existingPath = public_path($user->profile_picture);
-                if (File::exists($existingPath)) {
-                    File::delete($existingPath);
-                }
-            }
-
-            $file = $request->file('profile_picture');
-            $filename = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
-            $file->move($uploadDir, $filename);
-
-            $user->profile_picture = 'uploads/profile_pictures/' . $filename;
+            $this->deleteProfilePicture($user->profile_picture);
+            $path = $request->file('profile_picture')->storePublicly('profile_pictures', 'public');
+            $user->profile_picture = $path;
         }
 
         $user->save();
 
         return redirect()->route('profile')->with('success', 'Profile details updated successfully.');
+    }
+
+    private function deleteProfilePicture(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return;
+        }
+
+        if (Str::startsWith($path, 'uploads/')) {
+            $legacyPath = public_path($path);
+            if (File::exists($legacyPath)) {
+                File::delete($legacyPath);
+            }
+            return;
+        }
+
+        if (Str::startsWith($path, 'storage/')) {
+            $path = Str::after($path, 'storage/');
+        }
+
+        Storage::disk('public')->delete($path);
     }
 }

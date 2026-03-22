@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -101,5 +103,22 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->status === 'deactivated';
     }
-}
 
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        $path = trim((string) ($this->profile_picture ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        if (Str::startsWith($path, ['uploads/', 'storage/'])) {
+            return asset($path);
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+}

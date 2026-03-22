@@ -66,7 +66,7 @@ class AdminReportController extends Controller
         $departmentId = $admin->department_id;
 
         // Only show reports from the same department
-        $pendingReports = Report::whereIn('status', ['Pending', 'Under Review'])
+        $pendingReports = Report::where('status', 'Pending')
             ->whereHas('user', function($query) use ($departmentId) {
                 $query->where('department_id', $departmentId);
             })

@@ -244,18 +244,6 @@
             </div>
 
             <div class="form-group">
-                <label for="incident_additional_sheets">Additional Incident Documentation</label>
-                <input
-                    type="file"
-                    id="incident_additional_sheets"
-                    name="incident_additional_sheets[]"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    multiple
-                >
-                <small class="form-hint">Optional. Supporting documents (PDFs, images, Word docs). Max 10MB per file.</small>
-            </div>
-
-            <div class="form-group">
                 <label for="evidence">Supporting Evidence <span>*</span></label>
                 <input
                     type="file"

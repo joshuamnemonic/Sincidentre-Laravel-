@@ -66,6 +66,7 @@
                     <tr>
                         <th>Department Name</th>
                         <th>Total Users</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,10 +77,13 @@
                                 <span class="badge">{{ $department->regular_users_count }}</span>
                                 {{ Str::plural('user', $department->regular_users_count) }}
                             </td>
+                            <td>
+                                <a href="{{ route('admin.users', ['department' => $department->id]) }}" class="btn-view">View Users</a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="2" style="text-align:center; padding: 40px;">
+                            <td colspan="3" style="text-align:center; padding: 40px;">
                                 <p style="color: #999; margin: 0;">No departments found.</p>
                                 <small>Click "Add Department" to create your first department!</small>
                             </td>
@@ -100,6 +104,7 @@
                         {{ $department->regular_users_count }}
                         {{ Str::plural('user', $department->regular_users_count) }}
                     </span>
+                    <a href="{{ route('admin.users', ['department' => $department->id]) }}" class="btn-view">View Users</a>
                 </div>
             @empty
                 <div class="mobile-empty-state">

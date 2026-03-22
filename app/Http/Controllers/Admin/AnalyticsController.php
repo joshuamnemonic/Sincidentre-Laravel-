@@ -17,16 +17,13 @@ class AnalyticsController extends Controller
     public function index(Request $request)
     {
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
 
         // Determine date range based on period
         $period = $request->get('period', 'month');
         $dateRange = $this->getDateRange($period, $request);
 
-        // Get reports for the department
-        $baseQuery = Report::whereHas('user', function($q) use ($departmentId) {
-            $q->where('department_id', $departmentId);
-        });
+        // Get reports visible to the DSDO (department-based + assigned reports)
+        $baseQuery = $this->buildVisibleReportsQuery($admin);
 
         // Total reports (all time)
         $totalReports = $baseQuery->count();
@@ -48,48 +45,48 @@ class AnalyticsController extends Controller
             : 0;
 
         // Average response time (time from creation to first status change)
-        $avgResponseTime = $this->getAverageResponseTime($departmentId);
+        $avgResponseTime = $this->getAverageResponseTime($baseQuery);
 
         // Resolution rate
         $resolvedCount = (clone $baseQuery)->where('status', Report::STATUS_RESOLVED)->count();
         $resolutionRate = $totalReports > 0 ? round(($resolvedCount / $totalReports) * 100, 1) : 0;
 
         // 🚨 ALERTS - Recurring Incidents Detection
-        $alerts = $this->generateAlerts($departmentId, $dateRange);
+        $alerts = $this->generateAlerts($baseQuery, $dateRange);
 
         // Reports over time (trend chart)
-        $reportsOverTime = $this->getReportsOverTime($departmentId, $dateRange, $period);
+        $reportsOverTime = $this->getReportsOverTime($baseQuery, $dateRange, $period);
 
         // Reports by category
-        $categoryData = $this->getCategoryData($departmentId, $dateRange);
+        $categoryData = $this->getCategoryData($baseQuery, $dateRange);
 
         // Reports by status
-        $statusData = $this->getStatusData($departmentId, $dateRange);
+        $statusData = $this->getStatusData($baseQuery, $dateRange);
 
         // Reports by day of week
-        $dayOfWeekData = $this->getDayOfWeekData($departmentId, $dateRange);
+        $dayOfWeekData = $this->getDayOfWeekData($baseQuery, $dateRange);
 
         // Top categories table
-        $topCategories = $this->getTopCategories($departmentId, $dateRange);
+        $topCategories = $this->getTopCategories($baseQuery, $dateRange);
 
         // Frequent reporters (users with multiple reports)
-        $frequentReporters = $this->getFrequentReporters($departmentId, $dateRange);
+        $frequentReporters = $this->getFrequentReporters($baseQuery, $dateRange);
 
         // Location hotspots
-        $locationHotspots = $this->getLocationHotspots($departmentId, $dateRange);
-        $locationDetailsMap = $this->getLocationHotspotDetailsMap($departmentId, $dateRange, $locationHotspots);
+        $locationHotspots = $this->getLocationHotspots($baseQuery, $dateRange);
+        $locationDetailsMap = $this->getLocationHotspotDetailsMap($baseQuery, $dateRange, $locationHotspots);
         $selectedLocation = trim((string) $request->get('location', ''));
         $locationHotspotDetails = $selectedLocation !== ''
             ? ($locationDetailsMap[$selectedLocation] ?? collect())
             : collect();
 
         // Performance metrics
-        $avgTimeToApprove = $this->getAverageTimeToApprove($departmentId);
-        $avgTimeToResolve = $this->getAverageTimeToResolve($departmentId);
-        $overdueReports = $this->getOverdueReports($departmentId);
+        $avgTimeToApprove = $this->getAverageTimeToApprove($baseQuery);
+        $avgTimeToResolve = $this->getAverageTimeToResolve($baseQuery);
+        $overdueReports = $this->getOverdueReports($baseQuery);
         
         // Most active admin
-        $mostActiveAdminData = $this->getMostActiveAdmin($departmentId, $dateRange);
+        $mostActiveAdminData = $this->getMostActiveAdmin($baseQuery, $dateRange);
         $mostActiveAdmin = $mostActiveAdminData['name'];
         $mostActiveAdminCount = $mostActiveAdminData['count'];
 
@@ -156,9 +153,39 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function getAverageResponseTime($departmentId)
+    private function buildVisibleReportsQuery(User $admin)
     {
-        $reports = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $departmentId = $admin->department_id;
+        $fullName = strtolower(trim((string) (($admin->first_name ?? '') . ' ' . ($admin->last_name ?? ''))));
+
+        return Report::query()->where(function ($query) use ($departmentId, $fullName) {
+            if ($departmentId) {
+                $query->where(function ($deptQuery) use ($departmentId) {
+                    $deptQuery->whereHas('user', function ($userQuery) use ($departmentId) {
+                        $userQuery->where('department_id', $departmentId);
+                    })->whereHas('category', function ($categoryQuery) {
+                        $categoryQuery->whereNotIn('classification', ['Major', 'Grave']);
+                    });
+                });
+            }
+
+            if ($fullName !== '') {
+                if ($departmentId) {
+                    $query->orWhereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                } else {
+                    $query->whereRaw('LOWER(assigned_to) = ?', [$fullName]);
+                }
+            }
+
+            if (!$departmentId && $fullName === '') {
+                $query->whereRaw('1 = 0');
+            }
+        });
+    }
+
+    private function getAverageResponseTime($baseQuery)
+    {
+        $reports = (clone $baseQuery)
             ->whereNotNull('handled_by')
             ->get();
 
@@ -184,13 +211,13 @@ class AnalyticsController extends Controller
         return $count > 0 ? round($totalHours / $count, 1) : 'N/A';
     }
 
-    private function generateAlerts($departmentId, $dateRange)
+    private function generateAlerts($baseQuery, $dateRange)
     {
         $alerts = [];
 
         // 1. Frequent reporters alert (users with 3+ reports in period)
-        $frequentReporters = Report::select('user_id', DB::raw('COUNT(*) as report_count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $frequentReporters = (clone $baseQuery)
+            ->select('user_id', DB::raw('COUNT(*) as report_count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('user_id')
             ->having('report_count', '>=', 3)
@@ -208,8 +235,8 @@ class AnalyticsController extends Controller
         }
 
         // 2. Location hotspot alert (5+ incidents in same location)
-        $locationHotspots = Report::select('location', DB::raw('COUNT(*) as incident_count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $locationHotspots = (clone $baseQuery)
+            ->select('location', DB::raw('COUNT(*) as incident_count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->whereNotNull('location')
             ->where('location', '!=', '')
@@ -226,15 +253,15 @@ class AnalyticsController extends Controller
         }
 
         // 3. Category spike alert (category increased by 50%+ compared to previous period)
-        $currentCategoryCounts = Report::select('category_id', DB::raw('COUNT(*) as count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $currentCategoryCounts = (clone $baseQuery)
+            ->select('category_id', DB::raw('COUNT(*) as count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('category_id')
             ->pluck('count', 'category_id');
 
         $previousPeriodStart = $dateRange['start']->copy()->subDays($dateRange['start']->diffInDays($dateRange['end']));
-        $previousCategoryCounts = Report::select('category_id', DB::raw('COUNT(*) as count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $previousCategoryCounts = (clone $baseQuery)
+            ->select('category_id', DB::raw('COUNT(*) as count'))
             ->whereBetween('created_at', [$previousPeriodStart, $dateRange['start']])
             ->groupBy('category_id')
             ->pluck('count', 'category_id');
@@ -259,7 +286,7 @@ class AnalyticsController extends Controller
         }
 
         // 4. Overdue reports alert
-        $overdueCount = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $overdueCount = (clone $baseQuery)
             ->whereIn('status', [
                 Report::STATUS_PENDING,
                 Report::STATUS_UNDER_REVIEW,
@@ -279,10 +306,10 @@ class AnalyticsController extends Controller
         return $alerts;
     }
 
-    private function getReportsOverTime($departmentId, $dateRange, $period)
+    private function getReportsOverTime($baseQuery, $dateRange, $period)
     {
-        $reports = Report::select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $reports = (clone $baseQuery)
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('date')
             ->orderBy('date')
@@ -311,11 +338,11 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function getCategoryData($departmentId, $dateRange)
+    private function getCategoryData($baseQuery, $dateRange)
     {
-        $categories = Report::select('categories.name as category_name', DB::raw('COUNT(*) as count'))
+        $categories = (clone $baseQuery)
             ->join('categories', 'reports.category_id', '=', 'categories.id')
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+            ->select('categories.name as category_name', DB::raw('COUNT(*) as count'))
             ->whereBetween('reports.created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('categories.id', 'categories.name')
             ->get();
@@ -326,10 +353,10 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function getStatusData($departmentId, $dateRange)
+    private function getStatusData($baseQuery, $dateRange)
     {
-        $statusRows = Report::select('status', DB::raw('COUNT(*) as count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $statusRows = (clone $baseQuery)
+            ->select('status', DB::raw('COUNT(*) as count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('status')
             ->get();
@@ -361,10 +388,10 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function getDayOfWeekData($departmentId, $dateRange)
+    private function getDayOfWeekData($baseQuery, $dateRange)
     {
-        $reports = Report::select(DB::raw('DAYOFWEEK(created_at) as day'), DB::raw('COUNT(*) as count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $reports = (clone $baseQuery)
+            ->select(DB::raw('DAYOFWEEK(created_at) as day'), DB::raw('COUNT(*) as count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('day')
             ->get()
@@ -383,11 +410,11 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function getTopCategories($departmentId, $dateRange)
+    private function getTopCategories($baseQuery, $dateRange)
     {
-        return Report::select('categories.name as category_name', DB::raw('COUNT(*) as total'))
+        return (clone $baseQuery)
             ->join('categories', 'reports.category_id', '=', 'categories.id')
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+            ->select('categories.name as category_name', DB::raw('COUNT(*) as total'))
             ->whereBetween('reports.created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('categories.id', 'categories.name')
             ->orderByDesc('total')
@@ -395,15 +422,14 @@ class AnalyticsController extends Controller
             ->get();
     }
 
-    private function getFrequentReporters($departmentId, $dateRange)
+    private function getFrequentReporters($baseQuery, $dateRange)
     {
-        return Report::select(
+        return (clone $baseQuery)->select(
                 'reports.user_id',
                 DB::raw("CONCAT(users.first_name, ' ', users.last_name) as reporter_name"),
                 DB::raw('COUNT(*) as report_count')
             )
             ->join('users', 'reports.user_id', '=', 'users.id')
-            ->where('users.department_id', $departmentId)
             ->whereBetween('reports.created_at', [$dateRange['start'], $dateRange['end']])
             ->groupBy('reports.user_id', 'users.first_name', 'users.last_name')
             ->having('report_count', '>', 1)
@@ -412,10 +438,10 @@ class AnalyticsController extends Controller
             ->get();
     }
 
-    private function getLocationHotspots($departmentId, $dateRange)
+    private function getLocationHotspots($baseQuery, $dateRange)
     {
-        return Report::select('location', DB::raw('COUNT(*) as incident_count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        return (clone $baseQuery)
+            ->select('location', DB::raw('COUNT(*) as incident_count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->whereNotNull('location')
             ->where('location', '!=', '')
@@ -425,7 +451,7 @@ class AnalyticsController extends Controller
             ->get();
     }
 
-    private function getLocationHotspotDetails($departmentId, $dateRange, $location)
+    private function getLocationHotspotDetails($baseQuery, $dateRange, $location)
     {
         $location = trim((string) $location);
 
@@ -433,8 +459,8 @@ class AnalyticsController extends Controller
             return collect();
         }
 
-        $detailCounts = Report::select('location_details')
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $detailCounts = (clone $baseQuery)
+            ->select('location_details')
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->where('location', $location)
             ->get()
@@ -456,7 +482,7 @@ class AnalyticsController extends Controller
             ->values();
     }
 
-    private function getLocationHotspotDetailsMap($departmentId, $dateRange, $locationHotspots)
+    private function getLocationHotspotDetailsMap($baseQuery, $dateRange, $locationHotspots)
     {
         $locations = collect($locationHotspots)
             ->pluck('location')
@@ -467,8 +493,8 @@ class AnalyticsController extends Controller
             return [];
         }
 
-        $rows = Report::select('location', 'location_details', DB::raw('COUNT(*) as detail_count'))
-            ->whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $rows = (clone $baseQuery)
+            ->select('location', 'location_details', DB::raw('COUNT(*) as detail_count'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->whereIn('location', $locations)
             ->groupBy('location', 'location_details')
@@ -494,9 +520,9 @@ class AnalyticsController extends Controller
         return $detailsMap;
     }
 
-    private function getAverageTimeToApprove($departmentId)
+    private function getAverageTimeToApprove($baseQuery)
     {
-        $approvedReports = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $approvedReports = (clone $baseQuery)
             ->where('status', Report::STATUS_APPROVED)
             ->get();
 
@@ -522,9 +548,9 @@ class AnalyticsController extends Controller
         return $count > 0 ? round($totalHours / $count, 1) : 'N/A';
     }
 
-    private function getAverageTimeToResolve($departmentId)
+    private function getAverageTimeToResolve($baseQuery)
     {
-        $resolvedReports = Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        $resolvedReports = (clone $baseQuery)
             ->where('status', Report::STATUS_RESOLVED)
             ->get();
 
@@ -550,9 +576,9 @@ class AnalyticsController extends Controller
         return $count > 0 ? round($totalDays / $count, 1) : 'N/A';
     }
 
-    private function getOverdueReports($departmentId)
+    private function getOverdueReports($baseQuery)
     {
-        return Report::whereHas('user', fn($q) => $q->where('department_id', $departmentId))
+        return (clone $baseQuery)
             ->whereIn('status', [
                 Report::STATUS_PENDING,
                 Report::STATUS_UNDER_REVIEW,
@@ -562,10 +588,10 @@ class AnalyticsController extends Controller
             ->count();
     }
 
-    private function getMostActiveAdmin($departmentId, $dateRange)
+    private function getMostActiveAdmin($baseQuery, $dateRange)
     {
         $mostActive = Activity::select('performed_by', DB::raw('COUNT(*) as action_count'))
-            ->whereHas('report.user', fn($q) => $q->where('department_id', $departmentId))
+            ->whereIn('report_id', (clone $baseQuery)->select('id'))
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->whereNotNull('performed_by')
             ->groupBy('performed_by')
@@ -592,22 +618,19 @@ class AnalyticsController extends Controller
         $period = $request->get('period', 'month');
         
         $admin = Auth::user();
-        $departmentId = $admin->department_id;
         $dateRange = $this->getDateRange($period, $request);
 
-        $baseQuery = Report::whereHas('user', function($q) use ($departmentId) {
-            $q->where('department_id', $departmentId);
-        });
+        $baseQuery = $this->buildVisibleReportsQuery($admin);
 
         $totalReports = (clone $baseQuery)->count();
         $periodReports = (clone $baseQuery)
             ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])
             ->count();
 
-        $statusData = $this->getStatusData($departmentId, $dateRange);
-        $topCategories = $this->getTopCategories($departmentId, $dateRange);
-        $locationHotspots = $this->getLocationHotspots($departmentId, $dateRange);
-        $overdueReports = $this->getOverdueReports($departmentId);
+        $statusData = $this->getStatusData($baseQuery, $dateRange);
+        $topCategories = $this->getTopCategories($baseQuery, $dateRange);
+        $locationHotspots = $this->getLocationHotspots($baseQuery, $dateRange);
+        $overdueReports = $this->getOverdueReports($baseQuery);
 
         $analyticsSnapshot = [
             'period_start' => $dateRange['start']->format('Y-m-d'),

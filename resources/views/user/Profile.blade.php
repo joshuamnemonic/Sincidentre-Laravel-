@@ -15,7 +15,7 @@
         ];
         $displayRole = $roleMap[$registrantType] ?? ($registrantType !== '' ? ucwords(str_replace('_', ' ', $registrantType)) : 'N/A');
         $displayOffice = $user->department->name ?? ($user->employee_office ?? 'N/A');
-        $profilePhoto = $user->profile_picture ? asset($user->profile_picture) : asset('images/default-avatar.png');
+        $profilePhoto = $user->profile_picture_url ?: asset('images/default-avatar.png');
     @endphp
 
     <div class="profile-container animate">

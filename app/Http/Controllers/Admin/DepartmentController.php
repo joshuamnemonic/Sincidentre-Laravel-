@@ -10,10 +10,10 @@ class DepartmentController extends Controller
 {
     public function index()
     {
-        // ✅ Count only regular users (where is_department_student_discipline_officer = 0)
+        // ✅ Count users in department including DSDO (exclude Top Management)
         $departments = Department::withCount([
             'users as regular_users_count' => function ($query) {
-                $query->where('is_department_student_discipline_officer', 0); // Only count non-admin users
+                $query->where('is_top_management', 0);
             }
         ])
         ->orderBy('name')
